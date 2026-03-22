@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 import yaml
 
 
-Harness = Literal["openclaw"]
+Harness = Literal["openclaw", "hermes"]
 TargetOS = Literal["linux", "macos"]
 
 
