@@ -142,7 +142,7 @@ def check_agent(
         return
 
     profile = load_profile(profile_path)
-    report = run_structural_check(profile.output_dir, profile.name)
+    report = run_structural_check(profile.output_dir, profile.name, harness=profile.harness)
     typer.echo(str(report))
     if report.errors:
         raise typer.Exit(code=1)

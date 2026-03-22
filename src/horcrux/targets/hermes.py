@@ -40,12 +40,24 @@ class HermesTarget(BaseTarget):
     # ------------------------------------------------------------------
 
     def _render_soul(self) -> DiffusedFile:
-        """Copy SOUL.md verbatim — LLM generation is opt-in via --llm flag."""
+        """Render SOUL.md — agent-local file takes precedence over workspace copy.
+
+        Priority:
+          1. <output_dir>/SOUL.md — agent-specific soul, preserved verbatim
+          2. Canonical workspace SOUL.md — inherited as a starting point
+        """
+        agent_soul = self.profile.output_dir / "SOUL.md"
+        if agent_soul.exists():
+            content = agent_soul.read_text(encoding="utf-8")
+            transforms: tuple[str, ...] = ("agent-local",)
+        else:
+            content = self.source.read_text(Path("SOUL.md"))
+            transforms = ("copy",)
         return DiffusedFile(
             relative_path=Path("SOUL.md"),
-            content=self.source.read_text(Path("SOUL.md")),
+            content=content,
             source_path=Path("SOUL.md"),
-            transforms=("copy",),
+            transforms=transforms,
         )
 
     def _render_agents(self) -> DiffusedFile:

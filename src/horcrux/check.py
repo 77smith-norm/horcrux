@@ -88,6 +88,20 @@ _EXPECTED_FILES: list[tuple[Path, bool]] = [
     (Path("refs/DEVELOPMENT.md"), False),
 ]
 
+# Hermes agents have a simpler, more focused file set.
+# HEARTBEAT, TOOLS, USER are OpenClaw-specific — not applicable to Hermes.
+_HERMES_EXPECTED_FILES: list[tuple[Path, bool]] = [
+    (Path("SOUL.md"), True),
+    (Path("AGENTS.md"), True),
+    (Path("BOUNDARIES.md"), True),
+    (Path("MEMORY.md"), True),
+    (Path("IDENTITY.md"), True),
+]
+
+_HARNESS_EXPECTED_FILES: dict[str, list[tuple[Path, bool]]] = {
+    "hermes": _HERMES_EXPECTED_FILES,
+}
+
 _TONE_CHECK_FILES = {
     "SOUL.md",
     "AGENTS.md",
@@ -141,7 +155,9 @@ _SECOND_PERSON_PATTERNS = [
 ]
 
 
-def run_structural_check(output_dir: Path, agent_name: str) -> CheckReport:
+def run_structural_check(
+    output_dir: Path, agent_name: str, harness: str = "openclaw"
+) -> CheckReport:
     """Run fast structural checks — no LLM required."""
     report = CheckReport(agent_name=agent_name, output_dir=output_dir)
 
@@ -154,8 +170,10 @@ def run_structural_check(output_dir: Path, agent_name: str) -> CheckReport:
         ))
         return report
 
+    expected_files = _HARNESS_EXPECTED_FILES.get(harness, _EXPECTED_FILES)
+
     # 1. Check expected files are present
-    for rel_path, required in _EXPECTED_FILES:
+    for rel_path, required in expected_files:
         full_path = output_dir / rel_path
         if not full_path.exists():
             severity = Severity.ERROR if required else Severity.WARN
