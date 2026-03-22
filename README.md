@@ -101,6 +101,28 @@ List all registered horcrux agents.
 horcrux list
 ```
 
+## Safety
+
+### Idempotency
+
+- `horcrux diffuse` is idempotent: running it twice with the same inputs produces the same managed output.
+- Without `--force`, Horcrux will not overwrite any managed file that already exists. It exits with an error instead.
+- With `--force`, Horcrux overwrites only the files it manages for the selected harness. Unmanaged files outside the rendered file list are never touched.
+- `--dry-run` shows what Horcrux would write and what extra files already exist in `output_dir`, without writing anything.
+
+### File Safety
+
+- Horcrux only writes to `output_dir` as declared in the profile.
+- It never writes to system paths, never modifies the canonical workspace, and never deletes files.
+- Files such as `profile.yaml`, local notes, or any file outside the managed set are untouched even with `--force`.
+- If you use git for the target workspace, `git diff` is your safety net. Horcrux changes are ordinary file edits and are fully recoverable.
+
+### Recommended Workflow For Cautious Users
+
+1. Run `horcrux diff` first and review what would change.
+2. Run `horcrux diffuse --dry-run` and confirm the output list.
+3. Run `horcrux diffuse --force` to apply.
+
 ## Profile Format
 
 ```yaml
