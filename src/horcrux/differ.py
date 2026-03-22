@@ -6,6 +6,7 @@ import difflib
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import typer
 
@@ -33,6 +34,48 @@ class SectionSummary:
         return bool(self.added or self.removed or self.modified)
 
 
+@dataclass(frozen=True)
+class ManagedFileDiff:
+    """Rendered file compared against the current output directory."""
+
+    file: DiffusedFile
+    status: Literal["new", "changed", "unchanged"]
+    existing_text: str | None = None
+
+    @property
+    def path(self) -> Path:
+        return self.file.relative_path
+
+    @property
+    def rendered_text(self) -> str:
+        return self.file.content
+
+
+@dataclass(frozen=True)
+class DiffReport:
+    """Comparison between rendered files and an output directory."""
+
+    output_dir: Path
+    files: tuple[ManagedFileDiff, ...]
+    extra_paths: tuple[Path, ...] = ()
+
+    @property
+    def total_files(self) -> int:
+        return len(self.files)
+
+    @property
+    def new_files(self) -> tuple[ManagedFileDiff, ...]:
+        return tuple(file for file in self.files if file.status == "new")
+
+    @property
+    def changed_files(self) -> tuple[ManagedFileDiff, ...]:
+        return tuple(file for file in self.files if file.status == "changed")
+
+    @property
+    def unchanged_files(self) -> tuple[ManagedFileDiff, ...]:
+        return tuple(file for file in self.files if file.status == "unchanged")
+
+
 class _Printer:
     """Small output shim that uses rich styling when available."""
 
@@ -54,56 +97,108 @@ def run_diff(
 ) -> None:
     """Compare rendered files against what's currently in output_dir."""
     printer = _Printer()
-    output_dir = profile.output_dir
-    rendered_map = {f.relative_path: f for f in rendered_files}
-    existing_paths = {
-        p.relative_to(output_dir)
-        for p in output_dir.rglob("*")
-        if p.is_file() and not p.name.startswith(".")
-    } if output_dir.exists() else set()
+    report = build_diff_report(profile.output_dir, rendered_files)
 
-    rendered_paths = set(rendered_map.keys())
-    only_in_rendered = rendered_paths - existing_paths
-    only_in_output = existing_paths - rendered_paths
-    in_both = rendered_paths & existing_paths
-
-    changed: list[Path] = []
-    unchanged: list[Path] = []
-
-    for path in sorted(in_both):
-        existing_text = (output_dir / path).read_text(encoding="utf-8")
-        rendered_text = rendered_map[path].content
-        if existing_text == rendered_text:
-            unchanged.append(path)
-        else:
-            changed.append(path)
-
-    # Summary header
     printer.print(f"\nDiff: {profile.name} ({profile.harness}/{profile.os})", style="bold")
-    printer.print(f"Output dir: {output_dir}")
+    printer.print(f"Output dir: {report.output_dir}")
+    printer.print()
+    _print_diff_report(printer, report, verbose=verbose, show_match_message=True)
     printer.print()
 
-    if only_in_rendered:
+
+def run_diffuse_preview(
+    profile: AgentProfile,
+    rendered_files: list[DiffusedFile],
+    *,
+    source_root: Path,
+    runtime_workspace: Path,
+) -> None:
+    """Show a dry-run preview of what diffuse would write."""
+    printer = _Printer()
+    report = build_diff_report(profile.output_dir, rendered_files)
+
+    printer.print(f"Dry run: {profile.name} ({profile.harness}/{profile.os})", style="bold")
+    printer.print(f"Source root: {source_root}")
+    printer.print(f"Output dir: {report.output_dir}")
+    printer.print(f"Runtime workspace: {runtime_workspace}")
+    printer.print()
+    _print_diff_report(printer, report, verbose=False, show_match_message=False)
+    printer.print(
+        (
+            f"Would write {report.total_files} files "
+            f"({len(report.unchanged_files)} unchanged, {len(report.new_files)} new)."
+        ),
+        style="bold",
+    )
+    printer.print()
+
+
+def build_diff_report(output_dir: Path, rendered_files: list[DiffusedFile]) -> DiffReport:
+    """Compare rendered files against an output directory."""
+    existing_paths = (
+        {
+            path.relative_to(output_dir)
+            for path in output_dir.rglob("*")
+            if path.is_file() and not path.name.startswith(".")
+        }
+        if output_dir.exists()
+        else set()
+    )
+    rendered_paths = {file.relative_path for file in rendered_files}
+
+    file_diffs: list[ManagedFileDiff] = []
+    for file in rendered_files:
+        destination = output_dir / file.relative_path
+        if not destination.exists():
+            file_diffs.append(ManagedFileDiff(file=file, status="new"))
+            continue
+
+        existing_text = destination.read_text(encoding="utf-8")
+        status: Literal["new", "changed", "unchanged"] = "unchanged"
+        if existing_text != file.content:
+            status = "changed"
+        file_diffs.append(
+            ManagedFileDiff(
+                file=file,
+                status=status,
+                existing_text=existing_text,
+            )
+        )
+
+    return DiffReport(
+        output_dir=output_dir,
+        files=tuple(file_diffs),
+        extra_paths=tuple(sorted(existing_paths - rendered_paths)),
+    )
+
+
+def _print_diff_report(
+    printer: _Printer,
+    report: DiffReport,
+    *,
+    verbose: bool,
+    show_match_message: bool,
+) -> None:
+    if report.new_files:
         printer.print("  New files (would be written):", style="green")
-        for p in sorted(only_in_rendered):
-            printer.print(f"    + {p}", style="green")
-    if only_in_output:
+        for file in report.new_files:
+            printer.print(f"    + {file.path}", style="green")
+    if report.extra_paths:
         printer.print("  Extra files (not managed by Horcrux):", style="yellow")
-        for p in sorted(only_in_output):
-            printer.print(f"    ? {p}", style="yellow")
-    if changed:
+        for path in report.extra_paths:
+            printer.print(f"    ? {path}", style="yellow")
+    if report.changed_files:
         printer.print("  Changed files:", style="cyan")
-        for p in sorted(changed):
-            printer.print(f"    ~ {p}", style="cyan")
-            existing_text = (output_dir / p).read_text(encoding="utf-8")
-            rendered_text = rendered_map[p].content
-            _print_section_summary(printer, existing_text, rendered_text)
+        for file in report.changed_files:
+            printer.print(f"    ~ {file.path}", style="cyan")
+            existing_text = file.existing_text or ""
+            _print_section_summary(printer, existing_text, file.rendered_text)
             if verbose:
                 diff = difflib.unified_diff(
                     existing_text.splitlines(keepends=True),
-                    rendered_text.splitlines(keepends=True),
-                    fromfile=f"current/{p}",
-                    tofile=f"rendered/{p}",
+                    file.rendered_text.splitlines(keepends=True),
+                    fromfile=f"current/{file.path}",
+                    tofile=f"rendered/{file.path}",
                     n=3,
                 )
                 for line in diff:
@@ -111,12 +206,10 @@ def run_diff(
                         "      " + line.rstrip("\n"),
                         style=_diff_line_style(line),
                     )
-    if unchanged:
-        printer.print(f"  Unchanged: {len(unchanged)} file(s)")
-
-    if not only_in_rendered and not changed:
+    if report.unchanged_files:
+        printer.print(f"  Unchanged: {len(report.unchanged_files)} file(s)")
+    if show_match_message and not report.new_files and not report.changed_files:
         printer.print("  Output dir matches rendered output.", style="green")
-    printer.print()
 
 
 def _print_section_summary(printer: _Printer, existing_text: str, rendered_text: str) -> None:

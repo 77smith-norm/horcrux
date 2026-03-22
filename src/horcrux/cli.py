@@ -42,12 +42,9 @@ def _format_diffusion_summary(
     profile: AgentProfile,
     files: list[DiffusedFile],
     runtime_workspace: Path,
-    *,
-    dry_run: bool,
 ) -> str:
-    header = "Dry run" if dry_run else "Diffused"
     lines = [
-        f"{header}: {profile.name} ({profile.harness}/{profile.os})",
+        f"Diffused: {profile.name} ({profile.harness}/{profile.os})",
         f"Source root: {default_source_root()}",
         f"Output dir: {profile.output_dir}",
         f"Runtime workspace: {runtime_workspace}",
@@ -73,11 +70,19 @@ def diffuse(
     target = _build_target(profile)
     files = target.render()
     runtime_workspace = getattr(target, "runtime_workspace", profile.output_dir)
-    typer.echo(_format_diffusion_summary(profile, files, runtime_workspace, dry_run=dry_run))
 
     if dry_run:
+        from horcrux.differ import run_diffuse_preview
+
+        run_diffuse_preview(
+            profile,
+            files,
+            source_root=default_source_root(),
+            runtime_workspace=runtime_workspace,
+        )
         return
 
+    typer.echo(_format_diffusion_summary(profile, files, runtime_workspace))
     _write_files(files, profile.output_dir, force=force)
     registry = load_registry()
     entry = RegistryEntry(

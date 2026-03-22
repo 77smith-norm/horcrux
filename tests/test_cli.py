@@ -6,25 +6,79 @@ import yaml
 from typer.testing import CliRunner
 
 from horcrux.cli import app
+from horcrux.profile import load_profile
+from horcrux.source import load_canonical_workspace
+from horcrux.targets.openclaw import OpenClawTarget
 from tests.conftest import fixture_path
 
 
-def test_diffuse_dry_run_prints_meaningful_output(monkeypatch, tmp_path: Path) -> None:
+def _write_profile(tmp_path: Path) -> Path:
     profile_data = yaml.safe_load(fixture_path("profiles", "test-agent.yaml").read_text())
     profile_data["output_dir"] = str(tmp_path / "output")
     profile_path = tmp_path / "profile.yaml"
     profile_path.write_text(yaml.safe_dump(profile_data), encoding="utf-8")
+    return profile_path
+
+
+def _expected_render_count(profile_path: Path) -> int:
+    profile = load_profile(profile_path)
+    source = load_canonical_workspace(fixture_path("canonical"))
+    return len(OpenClawTarget(profile, source).render())
+
+
+def test_diffuse_dry_run_prints_meaningful_output(monkeypatch, tmp_path: Path) -> None:
+    profile_path = _write_profile(tmp_path)
 
     monkeypatch.setenv("HORCRUX_SOURCE_DIR", str(fixture_path("canonical")))
     monkeypatch.setenv("HORCRUX_REGISTRY_PATH", str(tmp_path / "agents.json"))
 
     result = CliRunner().invoke(app, ["diffuse", str(profile_path), "--dry-run"])
+    expected_count = _expected_render_count(profile_path)
 
     assert result.exit_code == 0
     assert "Dry run: TestAgent (openclaw/linux)" in result.stdout
     assert "Runtime workspace: /home/workspace/TestAgent" in result.stdout
-    assert "- AGENTS.md <- AGENTS.md [filter, substitute, render-model-routing]" in result.stdout
+    assert "New files (would be written):" in result.stdout
+    assert "+ AGENTS.md" in result.stdout
+    assert f"Would write {expected_count} files (0 unchanged, {expected_count} new)." in result.stdout
     assert not (tmp_path / "output" / "AGENTS.md").exists()
+
+
+def test_diffuse_dry_run_shows_compact_diff_for_existing_output(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    profile_path = _write_profile(tmp_path)
+    output_dir = tmp_path / "output"
+
+    monkeypatch.setenv("HORCRUX_SOURCE_DIR", str(fixture_path("canonical")))
+    monkeypatch.setenv("HORCRUX_REGISTRY_PATH", str(tmp_path / "agents.json"))
+
+    runner = CliRunner()
+    diffuse_result = runner.invoke(app, ["diffuse", str(profile_path), "--force"])
+    assert diffuse_result.exit_code == 0, diffuse_result.stdout
+
+    agents_file = output_dir / "AGENTS.md"
+    agents_file.write_text(
+        agents_file.read_text(encoding="utf-8").replace(
+            "## Safety (Short Form)",
+            "## Safety (Expanded)",
+        ),
+        encoding="utf-8",
+    )
+    (output_dir / "USER.md").unlink()
+
+    result = runner.invoke(app, ["diffuse", str(profile_path), "--dry-run"])
+    expected_count = _expected_render_count(profile_path)
+
+    assert result.exit_code == 0
+    assert "~ AGENTS.md" in result.stdout
+    assert "Added sections" in result.stdout
+    assert "Removed sections" in result.stdout
+    assert "## Safety (Short Form)" in result.stdout
+    assert "## Safety (Expanded)" in result.stdout
+    assert "+ USER.md" in result.stdout
+    assert f"Would write {expected_count} files (11 unchanged, 1 new)." in result.stdout
 
 
 def test_list_reads_registry(monkeypatch, tmp_path: Path) -> None:
@@ -53,4 +107,3 @@ def test_list_reads_registry(monkeypatch, tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert "TestAgent" in result.stdout
     assert "/tmp/output" in result.stdout
-
