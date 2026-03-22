@@ -87,6 +87,13 @@ _EXPECTED_FILES: list[tuple[Path, bool]] = [
     (Path("refs/DEVELOPMENT.md"), False),
 ]
 
+_TONE_CHECK_FILES = {
+    "SOUL.md",
+    "AGENTS.md",
+    "HEARTBEAT.md",
+    "BOUNDARIES.md",
+}
+
 # (min_bytes, max_bytes) — rough sanity bounds
 _SIZE_BOUNDS: dict[str, tuple[int, int]] = {
     "SOUL.md": (500, 8000),
@@ -112,6 +119,24 @@ _HOLLOW_PATTERNS = [
     re.compile(r"I('d| would) be happy to", re.IGNORECASE),
     re.compile(r"great question", re.IGNORECASE),
     re.compile(r"I will always (be )?there", re.IGNORECASE),
+]
+
+_PASSIVE_PATTERNS = [
+    re.compile(r"\bwill be done\b", re.IGNORECASE),
+    re.compile(r"\bshould be noted\b", re.IGNORECASE),
+    re.compile(r"\bcan be used\b", re.IGNORECASE),
+]
+
+_HEDGE_PATTERNS = [
+    re.compile(r"\bbasically\b", re.IGNORECASE),
+    re.compile(r"\bessentially\b", re.IGNORECASE),
+    re.compile(r"\bkind of\b", re.IGNORECASE),
+    re.compile(r"\bsort of\b", re.IGNORECASE),
+]
+
+_SECOND_PERSON_PATTERNS = [
+    re.compile(r"^\s*(?:[-*]\s+)?You should\b", re.IGNORECASE),
+    re.compile(r"^\s*(?:[-*]\s+)?You can\b", re.IGNORECASE),
 ]
 
 
@@ -163,15 +188,15 @@ def run_structural_check(output_dir: Path, agent_name: str) -> CheckReport:
                     suggestion="Review for accumulated cruft or duplicate sections.",
                 ))
 
-        # 3. Tone checks (SOUL.md and AGENTS.md only — most identity-bearing)
-        if rel_path.name in ("SOUL.md", "AGENTS.md"):
+        # 3. Tone checks for identity-bearing files
+        if rel_path.name in _TONE_CHECK_FILES:
             _check_tone(full_path, rel_path, report)
 
     return report
 
 
 def _check_tone(full_path: Path, rel_path: Path, report: CheckReport) -> None:
-    """Check for third-person and hollow language in identity files."""
+    """Check for tone drift patterns in identity files."""
     lines = full_path.read_text(encoding="utf-8").splitlines()
     for lineno, line in enumerate(lines, start=1):
         for pattern in _THIRD_PERSON_PATTERNS:
@@ -193,4 +218,34 @@ def _check_tone(full_path: Path, rel_path: Path, report: CheckReport) -> None:
                     line=lineno,
                     message=f"Hollow affirmation detected: {line.strip()!r}",
                     suggestion="Remove or replace with a genuine statement.",
+                ))
+        for pattern in _PASSIVE_PATTERNS:
+            m = pattern.search(line)
+            if m:
+                report.issues.append(CheckIssue(
+                    severity=Severity.WARN,
+                    file=rel_path,
+                    line=lineno,
+                    message=f"Passive construction detected: {line.strip()!r}",
+                    suggestion="Rewrite in direct voice with a named actor.",
+                ))
+        for pattern in _HEDGE_PATTERNS:
+            m = pattern.search(line)
+            if m:
+                report.issues.append(CheckIssue(
+                    severity=Severity.WARN,
+                    file=rel_path,
+                    line=lineno,
+                    message=f"Hedge inflation detected: {line.strip()!r}",
+                    suggestion="Delete the hedge and state the point directly.",
+                ))
+        for pattern in _SECOND_PERSON_PATTERNS:
+            m = pattern.search(line)
+            if m:
+                report.issues.append(CheckIssue(
+                    severity=Severity.WARN,
+                    file=rel_path,
+                    line=lineno,
+                    message=f"Second-person instruction detected: {line.strip()!r}",
+                    suggestion='Rewrite as a first-person rule or direct imperative.',
                 ))

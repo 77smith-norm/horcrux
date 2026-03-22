@@ -113,3 +113,56 @@ def test_check_cli_exits_zero_when_clean(tmp_path: Path) -> None:
     _populate_output(output_dir)
     result = runner.invoke(app, ["check", str(profile)])
     assert result.exit_code == 0
+
+
+def test_check_detects_passive_construction_in_heartbeat(tmp_path: Path) -> None:
+    output_dir = tmp_path / "output"
+    _populate_output(output_dir)
+    (output_dir / "HEARTBEAT.md").write_text(
+        "# HEARTBEAT.md\n\nThe recovery checklist should be noted before deploys.\n"
+        + "x" * 300,
+        encoding="utf-8",
+    )
+
+    report = run_structural_check(output_dir, "TestAgent")
+
+    passive = [
+        issue
+        for issue in report.warnings
+        if issue.file == Path("HEARTBEAT.md") and "passive construction" in issue.message.lower()
+    ]
+    assert passive, "Expected passive construction warning for HEARTBEAT.md"
+
+
+def test_check_detects_hedge_inflation_in_boundaries(tmp_path: Path) -> None:
+    output_dir = tmp_path / "output"
+    _populate_output(output_dir)
+    (output_dir / "BOUNDARIES.md").write_text(
+        "# BOUNDARIES.md\n\nBasically, I protect the system from risky actions.\n" + "x" * 300,
+        encoding="utf-8",
+    )
+
+    report = run_structural_check(output_dir, "TestAgent")
+
+    hedges = [
+        issue
+        for issue in report.warnings
+        if issue.file == Path("BOUNDARIES.md") and "hedge" in issue.message.lower()
+    ]
+    assert hedges, "Expected hedge inflation warning for BOUNDARIES.md"
+
+
+def test_check_detects_second_person_instruction(tmp_path: Path) -> None:
+    output_dir = tmp_path / "output"
+    _populate_output(output_dir)
+    (output_dir / "AGENTS.md").write_text(
+        "# AGENTS.md\n\nYou should review logs before making changes.\n" + "x" * 400,
+        encoding="utf-8",
+    )
+
+    report = run_structural_check(output_dir, "TestAgent")
+
+    second_person = [
+        issue for issue in report.warnings if "second-person" in issue.message.lower()
+    ]
+    assert second_person, "Expected second-person instruction warning"
