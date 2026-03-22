@@ -24,7 +24,9 @@ horcrux = "horcrux.cli:app"
 [dependency-groups]
 dev = [
   "pytest>=8.4.0",
+  "pytest-cov>=7.1.0",
   "ruff>=0.11.0",
+  "ty>=0.0.24",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -42,4 +44,10 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP"]
+select = ["E", "F", "I", "UP", "C90"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ty.environment]
+python-version = "3.12"
