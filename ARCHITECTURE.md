@@ -95,4 +95,11 @@ uv run ty check src      # type errors are build failures
 
 ---
 
+## Known deviations to address
+
+- `src/horcrux/cli.py` still performs diffusion orchestration, output-directory writes, and registry persistence directly. That exceeds the documented ownership rule that limits `cli.py` to argument parsing, output formatting, and exit codes.
+- `src/horcrux/init_flow.py` is a CLI-side helper module that is not represented in the current layer diagram.
+
+---
+
 _This document is the shape of the system. When in doubt, draw the layer diagram and check whether your change respects it._
