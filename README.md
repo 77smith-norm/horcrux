@@ -15,6 +15,35 @@ When you run multiple AI agents (OpenClaw, Hermes, Codex, etc.), each one needs 
 
 Horcrux automates the mechanical parts and checks the parts that should stay intentional.
 
+## Getting Started
+
+1. Install Horcrux:
+```bash
+pip install horcrux
+# or
+uv add horcrux
+```
+2. Identify your canonical workspace. In most setups, this is your primary OpenClaw workspace, such as `~/.openclaw/workspace`.
+3. Create `profiles/zocots.yaml`:
+```yaml
+name: Zocots
+harness: openclaw
+os: linux
+output_dir: ~/agents/Zocots
+model: openrouter/minimax/minimax-m2.7
+voice_notes: >
+  Quieter than Norm. More watchful. Technical and precise.
+```
+4. Preview the managed output with `horcrux diffuse profiles/zocots.yaml --dry-run`.
+5. Write the files with `horcrux diffuse profiles/zocots.yaml --force`.
+6. Verify the result with `horcrux check profiles/zocots.yaml`.
+```bash
+horcrux diffuse profiles/zocots.yaml --dry-run
+horcrux diffuse profiles/zocots.yaml --force
+horcrux check profiles/zocots.yaml
+```
+See [Commands](#commands) for the full command reference.
+
 ## Concepts
 
 **Canonical workspace** — the source of truth. One agent's fully-developed identity files. Typically the primary agent on a development machine.
