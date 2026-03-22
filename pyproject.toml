@@ -32,6 +32,10 @@ packages = ["src/horcrux"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = '-m "not smoke"'
+markers = [
+  "smoke: integration tests against the real Zocots workspace",
+]
 
 [tool.ruff]
 line-length = 100
