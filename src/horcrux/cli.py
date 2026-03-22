@@ -145,7 +145,14 @@ def check_agent(
 
 
 @app.command("fix")
-def fix_agent(profile_path: Path) -> None:
+def fix_agent(
+    profile_path: Path,
+    auto: bool = typer.Option(
+        False,
+        "--auto",
+        help="Apply safe auto-fixes without interactive prompts.",
+    ),
+) -> None:
     """Interactively apply fix suggestions from `horcrux check`."""
     from horcrux.check import run_structural_check
     from horcrux.fix import run_fix
@@ -158,7 +165,7 @@ def fix_agent(profile_path: Path) -> None:
         return
 
     typer.echo(str(report))
-    count = run_fix(report)
+    count = run_fix(report, auto=auto)
     if count:
         typer.echo(f"\n{count} fix(es) applied.")
     else:

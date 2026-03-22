@@ -21,6 +21,7 @@ class CheckIssue:
     line: int | None
     message: str
     suggestion: str | None = None
+    rule_id: str | None = None
 
     def __str__(self) -> str:
         loc = f":{self.line}" if self.line is not None else ""
@@ -208,6 +209,7 @@ def _check_tone(full_path: Path, rel_path: Path, report: CheckReport) -> None:
                     line=lineno,
                     message=f"Third-person/passive language: {line.strip()!r}",
                     suggestion='Rewrite in first person: "I …" not "The agent …"',
+                    rule_id="third_person",
                 ))
         for pattern in _HOLLOW_PATTERNS:
             m = pattern.search(line)
@@ -218,6 +220,7 @@ def _check_tone(full_path: Path, rel_path: Path, report: CheckReport) -> None:
                     line=lineno,
                     message=f"Hollow affirmation detected: {line.strip()!r}",
                     suggestion="Remove or replace with a genuine statement.",
+                    rule_id="hollow_affirmation",
                 ))
         for pattern in _PASSIVE_PATTERNS:
             m = pattern.search(line)
@@ -228,6 +231,7 @@ def _check_tone(full_path: Path, rel_path: Path, report: CheckReport) -> None:
                     line=lineno,
                     message=f"Passive construction detected: {line.strip()!r}",
                     suggestion="Rewrite in direct voice with a named actor.",
+                    rule_id="passive_construction",
                 ))
         for pattern in _HEDGE_PATTERNS:
             m = pattern.search(line)
@@ -238,6 +242,7 @@ def _check_tone(full_path: Path, rel_path: Path, report: CheckReport) -> None:
                     line=lineno,
                     message=f"Hedge inflation detected: {line.strip()!r}",
                     suggestion="Delete the hedge and state the point directly.",
+                    rule_id="hedge_inflation",
                 ))
         for pattern in _SECOND_PERSON_PATTERNS:
             m = pattern.search(line)
@@ -248,4 +253,5 @@ def _check_tone(full_path: Path, rel_path: Path, report: CheckReport) -> None:
                     line=lineno,
                     message=f"Second-person instruction detected: {line.strip()!r}",
                     suggestion='Rewrite as a first-person rule or direct imperative.',
+                    rule_id="second_person_instruction",
                 ))
