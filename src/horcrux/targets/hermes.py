@@ -21,8 +21,6 @@ from pathlib import Path
 from horcrux.profile import AgentProfile
 from horcrux.source import CanonicalWorkspace
 from horcrux.targets.openclaw import DiffusedFile
-from horcrux.transforms.copy import CopyTransform
-from horcrux.transforms.substitute import SubstituteTransform
 
 
 @dataclass(frozen=True)
@@ -140,7 +138,11 @@ class HermesTarget:
     # ------------------------------------------------------------------
 
     def _common_substitutions(self) -> tuple[tuple[str, str], ...]:
-        base = Path("/home") / self.profile.name.lower() if self.profile.os == "linux" else self.profile.output_dir
+        base = (
+            Path("/home") / self.profile.name.lower()
+            if self.profile.os == "linux"
+            else self.profile.output_dir
+        )
         return (
             ("/Users/norm/Developer", str(base / "dev")),
             ("/Users/norm/.openclaw/workspace", str(base)),

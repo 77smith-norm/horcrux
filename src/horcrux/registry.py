@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 import json
 import os
+from datetime import datetime
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
-
 
 REGISTRY_ENV_VAR = "HORCRUX_REGISTRY_PATH"
 DEFAULT_REGISTRY_PATH = Path.home() / ".horcrux" / "agents.json"

@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 from typer.testing import CliRunner
 
-from horcrux.check import CheckIssue, Severity, run_structural_check
+from horcrux.check import run_structural_check
 from horcrux.cli import app
 
 runner = CliRunner()
@@ -81,7 +80,10 @@ def test_check_detects_third_person(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     report = run_structural_check(output_dir, "TestAgent")
-    tone_issues = [i for i in report.warnings if "third-person" in i.message.lower() or "passive" in i.message.lower()]
+    tone_issues = [
+        i for i in report.warnings
+        if "third-person" in i.message.lower() or "passive" in i.message.lower()
+    ]
     assert tone_issues, "Expected third-person tone warning"
 
 

@@ -8,7 +8,7 @@ from enum import Enum
 from pathlib import Path
 
 
-class Severity(str, Enum):
+class Severity(str, Enum):  # noqa: UP042
     OK = "ok"
     WARN = "warn"
     ERROR = "error"

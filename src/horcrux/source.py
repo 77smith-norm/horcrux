@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import os
+from dataclasses import dataclass
 from pathlib import Path
-
 
 DEFAULT_SOURCE_ROOT = Path("/Users/norm/.openclaw/workspace")
 SOURCE_ROOT_ENV_VAR = "HORCRUX_SOURCE_DIR"

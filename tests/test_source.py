@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from horcrux.source import load_canonical_workspace
-
 from tests.conftest import fixture_path
 
 

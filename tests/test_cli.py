@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from typer.testing import CliRunner
 import yaml
+from typer.testing import CliRunner
 
 from horcrux.cli import app
-
 from tests.conftest import fixture_path
 
 

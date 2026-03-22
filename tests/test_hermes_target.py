@@ -7,7 +7,6 @@ from pathlib import Path
 from horcrux.profile import load_profile
 from horcrux.source import load_canonical_workspace
 from horcrux.targets.hermes import HermesTarget
-
 from tests.conftest import fixture_path
 
 
@@ -16,28 +15,6 @@ def _render_map(profile_file: str) -> dict[Path, object]:
     source = load_canonical_workspace(fixture_path("canonical"))
     files = HermesTarget(profile, source).render()
     return {f.relative_path: f for f in files}
-
-
-def _make_hermes_profile(tmp_path: "pytest.TempPathFactory") -> Path:  # type: ignore[name-defined]
-    yaml = tmp_path / "hermes-agent.yaml"
-    yaml.write_text(
-        """\
-name: TestHermes
-harness: hermes
-os: linux
-output_dir: /tmp/test-hermes
-model: some/model
-voice_notes: "Lean and direct."
-capabilities:
-  - terminal
-  - git
-exclude_tools:
-  - mdfind
-platform_notes: "Test platform."
-""",
-        encoding="utf-8",
-    )
-    return yaml
 
 
 def test_hermes_renders_four_files(tmp_path: Path) -> None:
@@ -134,7 +111,6 @@ platform_notes: ""
 
 def test_llm_transform_raises_without_api_key(monkeypatch: object) -> None:
     """LLMTransform should raise RuntimeError if no API key is set."""
-    import os
 
     import pytest
 

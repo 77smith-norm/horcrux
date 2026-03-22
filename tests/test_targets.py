@@ -5,7 +5,6 @@ from pathlib import Path
 from horcrux.profile import load_profile
 from horcrux.source import load_canonical_workspace
 from horcrux.targets.openclaw import OpenClawTarget
-
 from tests.conftest import fixture_path
 
 

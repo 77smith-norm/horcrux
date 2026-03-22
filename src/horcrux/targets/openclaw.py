@@ -12,7 +12,6 @@ from horcrux.transforms.copy import CopyTransform
 from horcrux.transforms.filter import FilterTransform
 from horcrux.transforms.substitute import SubstituteTransform
 
-
 MANAGED_REFS = (
     Path("refs/BIO.md"),
     Path("refs/GUARDRAILS.md"),

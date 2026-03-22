@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import typer
 
-
 _HARNESSESS = ["openclaw", "hermes"]
 _OSES = ["linux", "macos"]
 
@@ -70,7 +69,7 @@ def run_init_interview() -> str:
         f"os: {os_val}",
         f"output_dir: {output_dir}",
         f"model: {model}",
-        f'voice_notes: >',
+        'voice_notes: >',
         f'  {voice_notes}',
     ]
 

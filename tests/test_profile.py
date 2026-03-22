@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from horcrux.profile import load_profile
-
 from tests.conftest import fixture_path
 
 

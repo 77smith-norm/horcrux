@@ -5,9 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
 import yaml
-
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 Harness = Literal["openclaw", "hermes"]
 TargetOS = Literal["linux", "macos"]

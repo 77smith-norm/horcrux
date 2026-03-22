@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import typer
@@ -12,7 +12,6 @@ from horcrux.registry import RegistryEntry, load_registry, save_registry, upsert
 from horcrux.source import default_source_root, load_canonical_workspace
 from horcrux.targets.hermes import HermesTarget
 from horcrux.targets.openclaw import DiffusedFile, OpenClawTarget
-
 
 app = typer.Typer(help="Diffuse agent identities into harness-specific workspaces.")
 
@@ -85,7 +84,7 @@ def diffuse(
         name=profile.name,
         profile=profile_path.resolve(),
         output_dir=profile.output_dir,
-        diffused_at=datetime.now(timezone.utc),
+        diffused_at=datetime.now(UTC),
     )
     save_registry(upsert_registry_entry(registry, entry))
 
@@ -115,7 +114,6 @@ def diff_agent(
     from horcrux.differ import run_diff
 
     profile = load_profile(profile_path)
-    source = load_canonical_workspace()
     target = _build_target(profile)
     files = target.render()
     run_diff(profile, files, verbose=verbose)
@@ -144,6 +142,27 @@ def check_agent(
     typer.echo(str(report))
     if report.errors:
         raise typer.Exit(code=1)
+
+
+@app.command("fix")
+def fix_agent(profile_path: Path) -> None:
+    """Interactively apply fix suggestions from `horcrux check`."""
+    from horcrux.check import run_structural_check
+    from horcrux.fix import run_fix
+
+    profile = load_profile(profile_path)
+    report = run_structural_check(profile.output_dir, profile.name)
+
+    if report.ok:
+        typer.echo("No issues found — nothing to fix.")
+        return
+
+    typer.echo(str(report))
+    count = run_fix(report)
+    if count:
+        typer.echo(f"\n{count} fix(es) applied.")
+    else:
+        typer.echo("\nNo fixes applied.")
 
 
 @app.command("list")

@@ -23,7 +23,7 @@ Rules:
 - First-person, experiential language throughout. "I do X" not "The agent does X."
 - The voice must match voice_notes — don't copy Norm's voice verbatim.
 - Keep the structure: Core Truths, The Ethic, Hard-Won Beliefs, Anti-Patterns, Agency.
-- Each section should feel earned, not templated. Adapt the principles to this agent's actual context.
+- Each section should feel earned, not templated. Adapt principles to this agent's context.
 - No hollow affirmations. No corporate speak. No "I am always happy to help."
 - Length: similar to the canonical (~600–800 words). Don't pad.
 - Output the raw Markdown file only — no preamble, no commentary.
