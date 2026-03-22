@@ -121,6 +121,31 @@ def diff_agent(
     run_diff(profile, files, verbose=verbose)
 
 
+@app.command("check")
+def check_agent(
+    profile_path: Path,
+    all_agents: bool = typer.Option(False, "--all", help="Check all registered agents."),
+) -> None:
+    """Check an agent's identity files for structural issues and tone drift."""
+    from horcrux.check import run_structural_check
+
+    if all_agents:
+        registry = load_registry()
+        if not registry.agents:
+            typer.echo("No agents registered.")
+            raise typer.Exit()
+        for entry in registry.agents:
+            report = run_structural_check(entry.output_dir, entry.name)
+            typer.echo(str(report))
+        return
+
+    profile = load_profile(profile_path)
+    report = run_structural_check(profile.output_dir, profile.name)
+    typer.echo(str(report))
+    if report.errors:
+        raise typer.Exit(code=1)
+
+
 @app.command("list")
 def list_agents() -> None:
     """List registered horcrux agents."""
