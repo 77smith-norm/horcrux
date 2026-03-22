@@ -13,10 +13,10 @@ class SubstituteTransform:
     name: str = "substitute"
 
     def apply(self, text: str) -> str:
+        """Apply each configured substitution in order."""
         rendered = text
         for old, new in self.replacements:
             if not old:
                 raise ValueError("substitution source must not be empty")
             rendered = rendered.replace(old, new)
         return rendered
-

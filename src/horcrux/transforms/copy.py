@@ -12,5 +12,5 @@ class CopyTransform:
     name: str = "copy"
 
     def apply(self, text: str) -> str:
+        """Return the source text without modification."""
         return text
-

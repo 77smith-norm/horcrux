@@ -17,6 +17,7 @@ class FilterTransform:
     name: str = "filter"
 
     def apply(self, text: str) -> str:
+        """Remove configured sections and matching lines from markdown text."""
         lines = text.splitlines(keepends=True)
         filtered: list[str] = []
         skip_level: int | None = None
@@ -40,4 +41,3 @@ class FilterTransform:
             filtered.append(line)
 
         return "".join(filtered)
-
