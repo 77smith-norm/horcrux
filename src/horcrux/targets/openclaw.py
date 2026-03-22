@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 
-from horcrux.profile import AgentProfile
-from horcrux.source import CanonicalWorkspace
+from horcrux.targets.base import BaseTarget, DiffusedFile
+from horcrux.targets.registry import register
 from horcrux.transforms.base import Transform
 from horcrux.transforms.copy import CopyTransform
 from horcrux.transforms.filter import FilterTransform
@@ -21,22 +20,11 @@ MANAGED_REFS = (
 )
 
 
-@dataclass(frozen=True)
-class DiffusedFile:
-    """One rendered output file."""
-
-    relative_path: Path
-    content: str
-    source_path: Path | None
-    transforms: tuple[str, ...]
-
-
-class OpenClawTarget:
+@register
+class OpenClawTarget(BaseTarget):
     """Render a canonical workspace into an OpenClaw agent workspace."""
 
-    def __init__(self, profile: AgentProfile, source: CanonicalWorkspace) -> None:
-        self.profile = profile
-        self.source = source
+    harness_id = "openclaw"
 
     @property
     def runtime_workspace(self) -> Path:

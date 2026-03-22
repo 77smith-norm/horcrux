@@ -11,7 +11,7 @@ from typing import Literal
 import typer
 
 from horcrux.profile import AgentProfile
-from horcrux.targets.openclaw import DiffusedFile
+from horcrux.targets.base import DiffusedFile
 
 try:
     from rich.console import Console

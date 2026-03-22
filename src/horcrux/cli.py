@@ -10,19 +10,18 @@ import typer
 from horcrux.profile import AgentProfile, load_profile
 from horcrux.registry import RegistryEntry, load_registry, save_registry, upsert_registry_entry
 from horcrux.source import default_source_root, load_canonical_workspace
-from horcrux.targets.hermes import HermesTarget
-from horcrux.targets.openclaw import DiffusedFile, OpenClawTarget
+from horcrux.targets import BaseTarget, DiffusedFile, get_target
 
 app = typer.Typer(help="Diffuse agent identities into harness-specific workspaces.")
 
 
-def _build_target(profile: AgentProfile) -> OpenClawTarget | HermesTarget:
+def _build_target(profile: AgentProfile) -> BaseTarget:
     source = load_canonical_workspace()
-    if profile.harness == "openclaw":
-        return OpenClawTarget(profile, source)
-    if profile.harness == "hermes":
-        return HermesTarget(profile, source)
-    raise typer.BadParameter(f"unsupported harness: {profile.harness}")
+    try:
+        target_cls = get_target(profile.harness)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    return target_cls(profile=profile, source=source)
 
 
 def _write_files(files: list[DiffusedFile], output_dir: Path, *, force: bool) -> None:

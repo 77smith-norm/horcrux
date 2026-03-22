@@ -8,7 +8,7 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-Harness = Literal["openclaw", "hermes"]
+Harness = str
 TargetOS = Literal["linux", "macos"]
 
 
@@ -79,4 +79,3 @@ def load_profile(profile_path: Path | str) -> AgentProfile:
     if not isinstance(raw, dict):
         raise ValueError(f"profile {path} must contain a YAML mapping")
     return AgentProfile.model_validate(raw)
-

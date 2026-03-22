@@ -15,20 +15,17 @@ HEARTBEAT.md and refs/ are skipped — Hermes uses its own schedule/config.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 
-from horcrux.profile import AgentProfile
-from horcrux.source import CanonicalWorkspace
-from horcrux.targets.openclaw import DiffusedFile
+from horcrux.targets.base import BaseTarget, DiffusedFile
+from horcrux.targets.registry import register
 
 
-@dataclass(frozen=True)
-class HermesTarget:
+@register
+class HermesTarget(BaseTarget):
     """Render identity files for a Hermes Agent harness."""
 
-    profile: AgentProfile
-    source: CanonicalWorkspace
+    harness_id = "hermes"
 
     def render(self) -> list[DiffusedFile]:
         return [
