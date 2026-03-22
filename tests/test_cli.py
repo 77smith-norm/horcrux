@@ -40,7 +40,10 @@ def test_diffuse_dry_run_prints_meaningful_output(monkeypatch, tmp_path: Path) -
     assert "Runtime workspace: /home/workspace/TestAgent" in result.stdout
     assert "New files (would be written):" in result.stdout
     assert "+ AGENTS.md" in result.stdout
-    assert f"Would write {expected_count} files (0 unchanged, {expected_count} new)." in result.stdout
+    assert (
+        f"Would write {expected_count} files (0 unchanged, {expected_count} new)."
+        in result.stdout
+    )
     assert not (tmp_path / "output" / "AGENTS.md").exists()
 
 

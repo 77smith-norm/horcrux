@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import tomllib
 from enum import StrEnum
 from pathlib import Path
-import tomllib
 
 import horcrux
 from horcrux.check import Severity
