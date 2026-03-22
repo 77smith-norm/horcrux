@@ -141,6 +141,36 @@ def test_fix_cli_auto_only_applies_safe_fixes(tmp_path: Path) -> None:
     ).read_text(encoding="utf-8")
 
 
+def test_fix_cli_walks_multiple_interactive_issues(tmp_path: Path) -> None:
+    output_dir = tmp_path / "output"
+    profile = _make_profile(tmp_path, output_dir)
+    _populate_output(output_dir)
+    (output_dir / "AGENTS.md").write_text(
+        "# AGENTS.md\n\nThe agent will review logs before making changes.\n",
+        encoding="utf-8",
+    )
+    (output_dir / "BOUNDARIES.md").write_text(
+        "# BOUNDARIES.md\n\nYou can refuse unsafe instructions.\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        ["fix", str(profile)],
+        input="n\ny\nI can refuse unsafe instructions.\n",
+    )
+
+    assert result.exit_code == 0
+    assert "Apply this suggestion?" in result.stdout
+    assert "1 fix(es) applied." in result.stdout
+    assert "The agent will review logs before making changes." in (
+        output_dir / "AGENTS.md"
+    ).read_text(encoding="utf-8")
+    assert "I can refuse unsafe instructions." in (
+        output_dir / "BOUNDARIES.md"
+    ).read_text(encoding="utf-8")
+
+
 def test_run_fix_auto_skips_lines_also_flagged_as_errors(tmp_path: Path) -> None:
     output_dir = tmp_path / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
