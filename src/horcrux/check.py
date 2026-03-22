@@ -199,59 +199,91 @@ def run_structural_check(output_dir: Path, agent_name: str) -> CheckReport:
 def _check_tone(full_path: Path, rel_path: Path, report: CheckReport) -> None:
     """Check for tone drift patterns in identity files."""
     lines = full_path.read_text(encoding="utf-8").splitlines()
+    _check_third_person(lines, rel_path, report)
+    _check_hollow_affirmations(lines, rel_path, report)
+    _check_passive_constructions(lines, rel_path, report)
+    _check_hedge_inflation(lines, rel_path, report)
+    _check_second_person(lines, rel_path, report)
+
+
+def _check_third_person(lines: list[str], rel_path: Path, report: CheckReport) -> None:
+    _check_tone_patterns(
+        lines,
+        rel_path,
+        report,
+        patterns=_THIRD_PERSON_PATTERNS,
+        message_prefix="Third-person/passive language",
+        suggestion='Rewrite in first person: "I …" not "The agent …"',
+        rule_id="third_person",
+    )
+
+
+def _check_hollow_affirmations(lines: list[str], rel_path: Path, report: CheckReport) -> None:
+    _check_tone_patterns(
+        lines,
+        rel_path,
+        report,
+        patterns=_HOLLOW_PATTERNS,
+        message_prefix="Hollow affirmation detected",
+        suggestion="Remove or replace with a genuine statement.",
+        rule_id="hollow_affirmation",
+    )
+
+
+def _check_passive_constructions(lines: list[str], rel_path: Path, report: CheckReport) -> None:
+    _check_tone_patterns(
+        lines,
+        rel_path,
+        report,
+        patterns=_PASSIVE_PATTERNS,
+        message_prefix="Passive construction detected",
+        suggestion="Rewrite in direct voice with a named actor.",
+        rule_id="passive_construction",
+    )
+
+
+def _check_hedge_inflation(lines: list[str], rel_path: Path, report: CheckReport) -> None:
+    _check_tone_patterns(
+        lines,
+        rel_path,
+        report,
+        patterns=_HEDGE_PATTERNS,
+        message_prefix="Hedge inflation detected",
+        suggestion="Delete the hedge and state the point directly.",
+        rule_id="hedge_inflation",
+    )
+
+
+def _check_second_person(lines: list[str], rel_path: Path, report: CheckReport) -> None:
+    _check_tone_patterns(
+        lines,
+        rel_path,
+        report,
+        patterns=_SECOND_PERSON_PATTERNS,
+        message_prefix="Second-person instruction detected",
+        suggestion='Rewrite as a first-person rule or direct imperative.',
+        rule_id="second_person_instruction",
+    )
+
+
+def _check_tone_patterns(
+    lines: list[str],
+    rel_path: Path,
+    report: CheckReport,
+    *,
+    patterns: list[re.Pattern[str]],
+    message_prefix: str,
+    suggestion: str,
+    rule_id: str,
+) -> None:
     for lineno, line in enumerate(lines, start=1):
-        for pattern in _THIRD_PERSON_PATTERNS:
-            m = pattern.search(line)
-            if m:
+        for pattern in patterns:
+            if pattern.search(line):
                 report.issues.append(CheckIssue(
                     severity=Severity.WARN,
                     file=rel_path,
                     line=lineno,
-                    message=f"Third-person/passive language: {line.strip()!r}",
-                    suggestion='Rewrite in first person: "I …" not "The agent …"',
-                    rule_id="third_person",
-                ))
-        for pattern in _HOLLOW_PATTERNS:
-            m = pattern.search(line)
-            if m:
-                report.issues.append(CheckIssue(
-                    severity=Severity.WARN,
-                    file=rel_path,
-                    line=lineno,
-                    message=f"Hollow affirmation detected: {line.strip()!r}",
-                    suggestion="Remove or replace with a genuine statement.",
-                    rule_id="hollow_affirmation",
-                ))
-        for pattern in _PASSIVE_PATTERNS:
-            m = pattern.search(line)
-            if m:
-                report.issues.append(CheckIssue(
-                    severity=Severity.WARN,
-                    file=rel_path,
-                    line=lineno,
-                    message=f"Passive construction detected: {line.strip()!r}",
-                    suggestion="Rewrite in direct voice with a named actor.",
-                    rule_id="passive_construction",
-                ))
-        for pattern in _HEDGE_PATTERNS:
-            m = pattern.search(line)
-            if m:
-                report.issues.append(CheckIssue(
-                    severity=Severity.WARN,
-                    file=rel_path,
-                    line=lineno,
-                    message=f"Hedge inflation detected: {line.strip()!r}",
-                    suggestion="Delete the hedge and state the point directly.",
-                    rule_id="hedge_inflation",
-                ))
-        for pattern in _SECOND_PERSON_PATTERNS:
-            m = pattern.search(line)
-            if m:
-                report.issues.append(CheckIssue(
-                    severity=Severity.WARN,
-                    file=rel_path,
-                    line=lineno,
-                    message=f"Second-person instruction detected: {line.strip()!r}",
-                    suggestion='Rewrite as a first-person rule or direct imperative.',
-                    rule_id="second_person_instruction",
+                    message=f"{message_prefix}: {line.strip()!r}",
+                    suggestion=suggestion,
+                    rule_id=rule_id,
                 ))

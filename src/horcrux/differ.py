@@ -16,7 +16,7 @@ from horcrux.targets.base import DiffusedFile
 try:
     from rich.console import Console
 except ImportError:  # pragma: no cover - typer pulls rich in normal installs
-    Console = None
+    Console = None  # type: ignore[assignment]  # Intentional fallback when rich is absent.
 
 _HEADING_PATTERN = re.compile(r"^(#{1,6}\s+.+)$")
 
@@ -194,22 +194,30 @@ def _print_diff_report(
             existing_text = file.existing_text or ""
             _print_section_summary(printer, existing_text, file.rendered_text)
             if verbose:
-                diff = difflib.unified_diff(
-                    existing_text.splitlines(keepends=True),
-                    file.rendered_text.splitlines(keepends=True),
-                    fromfile=f"current/{file.path}",
-                    tofile=f"rendered/{file.path}",
-                    n=3,
-                )
-                for line in diff:
-                    printer.print(
-                        "      " + line.rstrip("\n"),
-                        style=_diff_line_style(line),
-                    )
+                _print_verbose_diff(printer, file, existing_text)
     if report.unchanged_files:
         printer.print(f"  Unchanged: {len(report.unchanged_files)} file(s)")
     if show_match_message and not report.new_files and not report.changed_files:
         printer.print("  Output dir matches rendered output.", style="green")
+
+
+def _print_verbose_diff(
+    printer: _Printer,
+    file: ManagedFileDiff,
+    existing_text: str,
+) -> None:
+    diff = difflib.unified_diff(
+        existing_text.splitlines(keepends=True),
+        file.rendered_text.splitlines(keepends=True),
+        fromfile=f"current/{file.path}",
+        tofile=f"rendered/{file.path}",
+        n=3,
+    )
+    for line in diff:
+        printer.print(
+            "      " + line.rstrip("\n"),
+            style=_diff_line_style(line),
+        )
 
 
 def _print_section_summary(printer: _Printer, existing_text: str, rendered_text: str) -> None:

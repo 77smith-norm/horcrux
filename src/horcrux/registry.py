@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 try:  # pragma: no cover - Windows fallback is exercised by the null branch.
     import fcntl
 except ImportError:  # pragma: no cover
-    fcntl = None
+    fcntl = None  # type: ignore[assignment]  # Intentional non-POSIX fallback.
 
 REGISTRY_ENV_VAR = "HORCRUX_REGISTRY_PATH"
 DEFAULT_REGISTRY_PATH = Path.home() / ".horcrux" / "agents.json"

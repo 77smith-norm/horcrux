@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
+import importlib
 import os
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass
+from typing import Any
 
 _SOUL_SYSTEM = """\
 You are a harness engineer seeding a new AI agent's identity file.
@@ -67,12 +65,11 @@ class LLMTransform:
 
     def apply(self, text: str) -> str:
         """Generate a native SOUL.md. `text` is the canonical SOUL.md content."""
-        try:
-            from openai import OpenAI
-        except ImportError as exc:
+        openai_client = _load_openai_client()
+        if openai_client is None:
             raise RuntimeError(
                 "openai package is required for LLM transforms: uv add openai"
-            ) from exc
+            )
 
         api_key = os.environ.get("OPENROUTER_API_KEY") or os.environ.get("OPENAI_API_KEY")
         if not api_key:
@@ -80,7 +77,7 @@ class LLMTransform:
                 "OPENROUTER_API_KEY or OPENAI_API_KEY env var must be set for LLM transforms"
             )
 
-        client = OpenAI(api_key=api_key, base_url=self.api_base)
+        client: Any = openai_client(api_key=api_key, base_url=self.api_base)
         prompt = _SOUL_PROMPT.format(
             canonical_soul=text,
             name=self.agent_name,
@@ -102,3 +99,15 @@ class LLMTransform:
         if not content:
             raise RuntimeError("LLM returned empty content for SOUL.md generation")
         return content.strip() + "\n"
+
+
+def _load_openai_client() -> type[Any] | None:
+    try:
+        openai_module = importlib.import_module("openai")
+    except ImportError:
+        return None
+
+    client = getattr(openai_module, "OpenAI", None)
+    if isinstance(client, type):
+        return client
+    return None

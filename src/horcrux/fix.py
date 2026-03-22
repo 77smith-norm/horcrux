@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
+from pathlib import Path
 
 import typer
 
 from horcrux.check import CheckIssue, CheckReport, Severity
 
-_AUTO_FIX_RULES = {
+_AUTO_FIX_RULES: dict[str, str] = {
     "hollow_affirmation": "",
 }
 
@@ -76,7 +77,7 @@ def _auto_fix_issues(report: CheckReport) -> list[CheckIssue]:
         if issue.severity == Severity.ERROR and issue.line is not None
     }
     selected: list[CheckIssue] = []
-    seen_lines: set[tuple[object, int | None]] = set()
+    seen_lines: set[tuple[Path, int | None]] = set()
 
     for issue in report.issues:
         line_key = (issue.file, issue.line)
@@ -93,7 +94,7 @@ def _auto_fix_issues(report: CheckReport) -> list[CheckIssue]:
 
 
 def _apply_auto_fixes(report: CheckReport) -> int:
-    issues_by_file: dict[object, list[CheckIssue]] = defaultdict(list)
+    issues_by_file: dict[Path, list[CheckIssue]] = defaultdict(list)
     for issue in _auto_fix_issues(report):
         issues_by_file[issue.file].append(issue)
 
@@ -105,6 +106,8 @@ def _apply_auto_fixes(report: CheckReport) -> int:
 
         for issue in sorted(issues, key=lambda item: item.line or 0, reverse=True):
             line_idx = (issue.line or 1) - 1
+            if issue.rule_id is None:
+                continue
             replacement = _AUTO_FIX_RULES[issue.rule_id]
             changed, _ = _apply_line_change(lines, line_idx, replacement)
             if changed:
@@ -132,7 +135,7 @@ def run_fix(report: CheckReport, *, auto: bool = False) -> int:
         return 0
 
     applied = 0
-    line_offsets: dict[object, int] = defaultdict(int)
+    line_offsets: dict[Path, int] = defaultdict(int)
     for issue in fixable:
         typer.echo(f"\n{issue}")
         if not typer.confirm("  Apply this suggestion?", default=False):
