@@ -171,6 +171,79 @@ def test_fix_cli_walks_multiple_interactive_issues(tmp_path: Path) -> None:
     ).read_text(encoding="utf-8")
 
 
+def test_fix_cli_shows_generated_hedge_edit_and_applies_custom_replacement(
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "output"
+    profile = _make_profile(tmp_path, output_dir)
+    _populate_output(output_dir)
+    (output_dir / "HEARTBEAT.md").write_text(
+        "# HEARTBEAT.md\n\nBasically, I review logs hourly.\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        ["fix", str(profile)],
+        input="y\nI review logs hourly.\n",
+    )
+
+    assert result.exit_code == 0
+    assert "Suggested edit: I review logs hourly." in result.stdout
+    assert "1 fix(es) applied." in result.stdout
+    assert (output_dir / "HEARTBEAT.md").read_text(encoding="utf-8") == (
+        "# HEARTBEAT.md\n\nI review logs hourly.\n"
+    )
+
+
+def test_fix_cli_shows_delete_hint_for_hollow_affirmation(tmp_path: Path) -> None:
+    output_dir = tmp_path / "output"
+    profile = _make_profile(tmp_path, output_dir)
+    _populate_output(output_dir)
+    (output_dir / "SOUL.md").write_text(
+        "# SOUL.md\n\nI am always happy to help with any task.\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        ["fix", str(profile)],
+        input="y\nI stay focused on the work.\n",
+    )
+
+    assert result.exit_code == 0
+    assert "Suggested edit: [delete line]" in result.stdout
+    assert "1 fix(es) applied." in result.stdout
+    assert (output_dir / "SOUL.md").read_text(encoding="utf-8") == (
+        "# SOUL.md\n\nI stay focused on the work.\n"
+    )
+
+
+def test_fix_cli_allows_custom_replacement_when_no_draft_is_available(
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "output"
+    profile = _make_profile(tmp_path, output_dir)
+    _populate_output(output_dir)
+    (output_dir / "AGENTS.md").write_text(
+        "# AGENTS.md\n\nThis will be done carefully.\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        ["fix", str(profile)],
+        input="y\nI do this work carefully.\n",
+    )
+
+    assert result.exit_code == 0
+    assert "Suggested edit:" not in result.stdout
+    assert "1 fix(es) applied." in result.stdout
+    assert (output_dir / "AGENTS.md").read_text(encoding="utf-8") == (
+        "# AGENTS.md\n\nI do this work carefully.\n"
+    )
+
+
 def test_run_fix_auto_skips_lines_also_flagged_as_errors(tmp_path: Path) -> None:
     output_dir = tmp_path / "output"
     output_dir.mkdir(parents=True, exist_ok=True)

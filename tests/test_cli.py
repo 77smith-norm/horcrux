@@ -5,8 +5,10 @@ from pathlib import Path
 import yaml
 from typer.testing import CliRunner
 
+from horcrux.check import CheckReport
 from horcrux.cli import app
 from horcrux.profile import load_profile
+from horcrux.registry import Registry, RegistryEntry
 from horcrux.source import load_canonical_workspace
 from horcrux.targets.openclaw import OpenClawTarget
 from tests.conftest import fixture_path
@@ -110,3 +112,66 @@ def test_list_reads_registry(monkeypatch, tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert "TestAgent" in result.stdout
     assert "/tmp/output" in result.stdout
+
+
+def test_fix_exits_early_when_report_is_clean(monkeypatch, tmp_path: Path) -> None:
+    profile_path = _write_profile(tmp_path)
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+
+    def fake_run_structural_check(_output_dir: Path, _agent_name: str) -> CheckReport:
+        return CheckReport(agent_name="TestAgent", output_dir=output_dir)
+
+    monkeypatch.setattr("horcrux.check.run_structural_check", fake_run_structural_check)
+
+    result = CliRunner().invoke(app, ["fix", str(profile_path)])
+
+    assert result.exit_code == 0
+    assert "No issues found — nothing to fix." in result.stdout
+
+
+def test_fix_reports_empty_agent_dir_without_crashing(tmp_path: Path) -> None:
+    profile_path = _write_profile(tmp_path)
+
+    result = CliRunner().invoke(app, ["fix", str(profile_path)])
+
+    assert result.exit_code == 0
+    assert "Output directory does not exist." in result.stdout
+    assert "No fixable issues found." in result.stdout
+    assert "No fixes applied." in result.stdout
+
+
+def test_check_all_exits_cleanly_when_registry_is_empty(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr("horcrux.cli.load_registry", lambda: Registry())
+
+    result = CliRunner().invoke(app, ["check", str(tmp_path / "unused.yaml"), "--all"])
+
+    assert result.exit_code == 0
+    assert "No agents registered." in result.stdout
+
+
+def test_check_all_prints_each_registered_agent_report(monkeypatch, tmp_path: Path) -> None:
+    output_dir = tmp_path / "agent-output"
+    registry = Registry(
+        agents=[
+            RegistryEntry(
+                name="TestAgent",
+                profile=tmp_path / "profile.yaml",
+                output_dir=output_dir,
+                diffused_at="2026-03-22T17:00:00Z",
+            )
+        ]
+    )
+
+    def fake_run_structural_check(agent_output_dir: Path, agent_name: str) -> CheckReport:
+        return CheckReport(agent_name=agent_name, output_dir=agent_output_dir)
+
+    monkeypatch.setattr("horcrux.cli.load_registry", lambda: registry)
+    monkeypatch.setattr("horcrux.check.run_structural_check", fake_run_structural_check)
+
+    result = CliRunner().invoke(app, ["check", str(tmp_path / "unused.yaml"), "--all"])
+
+    assert result.exit_code == 0
+    assert "Check: TestAgent" in result.stdout
+    assert f"Output dir: {output_dir}" in result.stdout
+    assert "No issues found." in result.stdout
