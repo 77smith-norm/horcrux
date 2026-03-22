@@ -2,6 +2,17 @@
 
 > *Each derived agent carries a fragment of the original. Not a clone. An individual.*
 
+- [Getting Started](#getting-started)
+- [Concepts](#concepts)
+- [Install](#install)
+- [Commands](#commands)
+- [Safety](#safety)
+- [Profile Format](#profile-format)
+- [What Gets Diffused](#what-gets-diffused)
+- [Harnesses](#harnesses)
+- [Tone Principles](#tone-principles)
+- [Development](#development)
+
 Horcrux is a CLI tool for seeding, monitoring, and maintaining AI agent identity files across harnesses. It takes a canonical source workspace and diffuses it into harness-specific files for any target agent — substituting paths, filtering platform-specific content, and optionally generating native voice via LLM.
 
 ## The Problem
@@ -186,7 +197,9 @@ platform_notes: "Ubuntu 22.04 VM. No GUI tools."
 | `MEMORY.md` | Minimal seed |
 | `IDENTITY.md` | Generated from profile |
 | `USER.md` | Verbatim copy |
-| `refs/*` | Copy or path substitution |
+| `refs/*.md` | OpenClaw only: selected files are copied or path-substituted |
+
+Actual managed files depend on the harness. Hermes does not diffuse `refs/`.
 
 ## Harnesses
 
