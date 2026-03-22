@@ -90,6 +90,37 @@ def diffuse(
     save_registry(upsert_registry_entry(registry, entry))
 
 
+@app.command("init")
+def init_profile(
+    output: Path = typer.Option(None, "--output", "-o", help="Write profile to this path."),
+) -> None:
+    """Interview flow to generate an agent profile YAML."""
+    from horcrux.init_flow import run_init_interview
+
+    result = run_init_interview()
+    if output:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(result, encoding="utf-8")
+        typer.echo(f"Profile written to {output}")
+    else:
+        typer.echo(result)
+
+
+@app.command("diff")
+def diff_agent(
+    profile_path: Path,
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show full content diffs."),
+) -> None:
+    """Show structural diff between current output_dir and what diffuse would produce."""
+    from horcrux.differ import run_diff
+
+    profile = load_profile(profile_path)
+    source = load_canonical_workspace()
+    target = _build_target(profile)
+    files = target.render()
+    run_diff(profile, files, verbose=verbose)
+
+
 @app.command("list")
 def list_agents() -> None:
     """List registered horcrux agents."""
