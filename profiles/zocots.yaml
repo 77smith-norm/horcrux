@@ -1,0 +1,17 @@
+name: Zocots
+harness: openclaw
+os: linux
+output_dir: /Users/norm/.openclaw/workspace/agents/Zocots
+model: openrouter/minimax/minimax-m2.7
+voice_notes: "Quieter than Norm. More watchful. Technical and precise."
+capabilities:
+  - terminal
+  - git
+  - web
+  - python
+exclude_tools:
+  - mdfind
+  - applcal
+  - applpass
+  - remindctl
+platform_notes: "Zo Computer VM — Ubuntu 22.04. No GUI tools. No macOS paths."

@@ -1,0 +1,14 @@
+name: TestAgent
+harness: openclaw
+os: linux
+output_dir: /tmp/horcrux-test-agent
+model: openrouter/example/test-model
+voice_notes: Quiet, direct, technical.
+capabilities:
+  - terminal
+  - python
+exclude_tools:
+  - mdfind
+  - applcal
+platform_notes: Linux container. No GUI.
+
