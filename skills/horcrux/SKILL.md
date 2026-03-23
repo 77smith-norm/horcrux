@@ -55,11 +55,42 @@ Add `source_root` to the profile when the canonical workspace is not the default
 source_root: ~/horcrux-starter
 overrides:
   USER.md: ~/clients/zocots/USER.md
+harness_plugin: ~/horcrux-plugins/blob_harness.py
 ```
 
 Override keys use canonical document paths such as `USER.md`, `SOUL.md`, or
 `refs/HANDOFF.md`. Override values are local files that replace the canonical
 document during rendering.
+
+Set `harness_plugin` when the harness is provided by a local Python plugin
+instead of Horcrux core. The plugin file must register a `BaseTarget`
+subclass whose `harness_id` matches the profile `harness`.
+
+```python
+from pathlib import Path
+from typing import ClassVar
+
+from horcrux.targets.base import BaseTarget, DiffusedFile
+from horcrux.targets.registry import register
+
+
+@register
+class BlobHarnessTarget(BaseTarget):
+    harness_id: ClassVar[str] = "blob"
+
+    def render(self) -> list[DiffusedFile]:
+        return [
+            DiffusedFile(
+                relative_path=Path("PLUGIN.md"),
+                content=self.source.read_text(Path("SOUL.md")),
+                source_path=Path("SOUL.md"),
+                transforms=("plugin-copy",),
+            )
+        ]
+```
+
+See `docs/adding-a-harness.md` for the full plugin authoring workflow and the
+trust model.
 
 ## Commands
 

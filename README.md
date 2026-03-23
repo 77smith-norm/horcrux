@@ -10,6 +10,7 @@
 - [Profile Format](#profile-format)
 - [What Gets Diffused](#what-gets-diffused)
 - [Harnesses](#harnesses)
+- [Harness Plugins](#harness-plugins)
 - [Tone Principles](#tone-principles)
 - [Development](#development)
 
@@ -205,6 +206,7 @@ source_root: ~/horcrux-starter  # optional; otherwise uses HORCRUX_SOURCE_DIR or
 overrides:
   USER.md: ~/clients/zocots/USER.md
   SOUL.md: ~/clients/zocots/SOUL.md
+harness_plugin: ~/horcrux-plugins/blob_harness.py  # optional; load a harness from a local Python file
 model: openrouter/minimax/minimax-m2.7
 voice_notes: >
   Quieter than Norm. More watchful. Technical and precise.
@@ -221,6 +223,8 @@ platform_notes: "Ubuntu 22.04 VM. No GUI tools."
 ```
 
 Override keys use the canonical document path (`USER.md`, `SOUL.md`, `refs/HANDOFF.md`, and so on). Override values point to local files that replace the canonical document during rendering.
+
+If `harness_plugin` is set, Horcrux imports that local Python file before resolving `harness`.
 
 ## What Gets Diffused
 
@@ -247,6 +251,43 @@ Full file set: identity files + refs/. Platform-specific sections filtered for L
 ### Hermes Agent
 
 Lean file set: `SOUL.md`, `AGENTS.md`, `IDENTITY.md`, `MEMORY.md`. No refs/ or HEARTBEAT.md — Hermes uses its own scheduling. SOUL.md is installed to `~/.hermes/SOUL.md` by the operator.
+
+## Harness Plugins
+
+Use `harness_plugin` when the harness is not built into Horcrux:
+
+```yaml
+harness: blob
+harness_plugin: ~/horcrux-plugins/blob_harness.py
+```
+
+Horcrux imports the plugin file before target lookup. The plugin must register a `BaseTarget`
+subclass whose `harness_id` matches the profile `harness`.
+
+```python
+from pathlib import Path
+from typing import ClassVar
+
+from horcrux.targets.base import BaseTarget, DiffusedFile
+from horcrux.targets.registry import register
+
+
+@register
+class BlobHarnessTarget(BaseTarget):
+    harness_id: ClassVar[str] = "blob"
+
+    def render(self) -> list[DiffusedFile]:
+        return [
+            DiffusedFile(
+                relative_path=Path("PLUGIN.md"),
+                content=self.source.read_text(Path("SOUL.md")),
+                source_path=Path("SOUL.md"),
+                transforms=("plugin-copy",),
+            )
+        ]
+```
+
+See [docs/adding-a-harness.md](docs/adding-a-harness.md) for the full plugin authoring guide and security notes.
 
 ## Tone Principles
 
