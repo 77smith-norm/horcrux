@@ -11,7 +11,7 @@ import typer
 
 from horcrux.profile import AgentProfile, load_profile
 from horcrux.registry import RegistryEntry, load_registry, save_registry, upsert_registry_entry
-from horcrux.source import load_canonical_workspace, resolve_source_root
+from horcrux.source import apply_overrides, load_canonical_workspace, resolve_source_root
 from horcrux.targets import BaseTarget, DiffusedFile, get_target
 
 app = typer.Typer(help="Diffuse agent identities into harness-specific workspaces.")
@@ -86,6 +86,7 @@ def _build_target(
         raise typer.BadParameter(str(exc)) from exc
     resolved_source_root = resolve_source_root(profile, cli_override=source_root)
     source = load_canonical_workspace(resolved_source_root)
+    source = apply_overrides(source, profile.overrides)
     return target_cls(profile=profile, source=source), resolved_source_root
 
 

@@ -238,3 +238,23 @@ def test_diffuse_source_flag_overrides_profile(monkeypatch, tmp_path: Path) -> N
     assert (tmp_path / "output" / "SOUL.md").read_text(encoding="utf-8") == (
         "# SOUL.md\n\nCLI source root.\n"
     )
+
+
+def test_diffuse_override_replaces_user_md(monkeypatch, tmp_path: Path) -> None:
+    profile_path = _write_profile(tmp_path)
+    override_path = tmp_path / "USER.override.md"
+    override_path.write_text("# USER.md\n\nOverride user document.\n", encoding="utf-8")
+
+    profile_data = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile_data["overrides"] = {"USER.md": str(override_path)}
+    profile_path.write_text(yaml.safe_dump(profile_data), encoding="utf-8")
+
+    monkeypatch.setenv("HORCRUX_SOURCE_DIR", str(fixture_path("canonical")))
+    monkeypatch.setenv("HORCRUX_REGISTRY_PATH", str(tmp_path / "agents.json"))
+
+    result = CliRunner().invoke(app, ["diffuse", str(profile_path), "--force"])
+
+    assert result.exit_code == 0, result.stdout
+    assert (tmp_path / "output" / "USER.md").read_text(encoding="utf-8") == (
+        "# USER.md\n\nOverride user document.\n"
+    )
