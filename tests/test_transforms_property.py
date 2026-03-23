@@ -2,15 +2,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from hypothesis import given
+from hypothesis import assume, given
 from hypothesis import strategies as st
 
 from horcrux.transforms.filter import FilterTransform
+from horcrux.transforms.substitute import SubstituteTransform
 
 ASCII_PRINTABLE = [chr(codepoint) for codepoint in range(32, 127) if chr(codepoint) not in "#<>"]
 TEXT_CHUNK = st.text(alphabet=ASCII_PRINTABLE, min_size=0, max_size=24)
 HEADING_TITLE = TEXT_CHUNK.map(str.strip).filter(bool)
 HEADING_LEVEL = st.integers(min_value=1, max_value=6)
+SUBSTITUTE_TEXT = st.text(alphabet=[chr(codepoint) for codepoint in range(32, 127)], max_size=40)
+NON_EMPTY_SUBSTITUTE_TEXT = SUBSTITUTE_TEXT.filter(bool)
 
 
 @dataclass(frozen=True)
@@ -84,7 +87,7 @@ def filter_section_case(draw: st.DrawFn) -> FilterSectionCase:
 
 
 @st.composite
-def drop_line_case(draw: st.DrawFn) -> tuple[str, str]:
+def drop_line_case(draw: st.DrawFn) -> tuple[str, str, str]:
     fragment = f"<<drop-{draw(st.integers(min_value=0, max_value=999_999))}>>"
     kept_lines = draw(tagged_lines("keep"))
     dropped_lines = draw(tagged_lines("drop")).copy()
@@ -146,3 +149,73 @@ def test_filter_transform_leaves_plain_text_unchanged_when_nothing_matches(
     text = render_lines(plain_lines)
 
     assert FilterTransform(drop_if_contains=("<<absent>>",)).apply(text) == text
+
+
+@given(
+    text=SUBSTITUTE_TEXT,
+    old=NON_EMPTY_SUBSTITUTE_TEXT,
+    new=SUBSTITUTE_TEXT,
+)
+def test_substitute_transform_is_a_no_op_when_pattern_is_absent(
+    text: str,
+    old: str,
+    new: str,
+) -> None:
+    assume(old not in text)
+
+    rendered = SubstituteTransform(replacements=((old, new),)).apply(text)
+
+    assert rendered == text
+
+
+@given(
+    prefix=SUBSTITUTE_TEXT,
+    suffix=SUBSTITUTE_TEXT,
+    old=NON_EMPTY_SUBSTITUTE_TEXT,
+    new=SUBSTITUTE_TEXT,
+)
+def test_substitute_transform_replaces_present_patterns(
+    prefix: str,
+    suffix: str,
+    old: str,
+    new: str,
+) -> None:
+    assume(new != old)
+    assume(old not in new)
+
+    text = f"{prefix}{old}{suffix}"
+    rendered = SubstituteTransform(replacements=((old, new),)).apply(text)
+
+    assert new in rendered
+    assert old not in rendered
+
+
+@given(text=SUBSTITUTE_TEXT)
+def test_substitute_transform_with_no_replacements_is_identity(text: str) -> None:
+    assert SubstituteTransform(replacements=()).apply(text) == text
+
+
+@given(
+    old=NON_EMPTY_SUBSTITUTE_TEXT,
+    extension=NON_EMPTY_SUBSTITUTE_TEXT,
+    first_marker=st.integers(min_value=0, max_value=999_999),
+    second_marker=st.integers(min_value=0, max_value=999_999),
+)
+def test_substitute_transform_uses_replacement_order_for_overlapping_patterns(
+    old: str,
+    extension: str,
+    first_marker: int,
+    second_marker: int,
+) -> None:
+    assume(old not in extension)
+    longer_old = old + extension
+    first_new = f"<<first-{first_marker}>>"
+    second_new = f"<<second-{second_marker}>>"
+    text = longer_old
+
+    rendered = SubstituteTransform(
+        replacements=((old, first_new), (longer_old, second_new))
+    ).apply(text)
+
+    assert rendered == first_new + extension
+    assert second_new not in rendered
