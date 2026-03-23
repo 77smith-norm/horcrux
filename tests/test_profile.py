@@ -26,6 +26,7 @@ def test_load_profile_parses_yaml() -> None:
     assert profile.os == "linux"
     assert profile.output_dir.as_posix() == "/tmp/horcrux-test-agent"
     assert profile.overrides == {}
+    assert profile.harness_plugin is None
     assert profile.capabilities == ["terminal", "python"]
     assert profile.exclude_tools == ["mdfind", "applcal"]
 
@@ -60,6 +61,20 @@ def test_profile_overrides_expand_tilde(tmp_path: Path) -> None:
     )
 
     assert profile.overrides == {"USER.md": Path("~/client-overrides/USER.md").expanduser()}
+
+
+def test_profile_harness_plugin_optional(tmp_path: Path) -> None:
+    profile = load_profile(_write_profile(tmp_path))
+
+    assert profile.harness_plugin is None
+
+
+def test_profile_harness_plugin_expands_tilde(tmp_path: Path) -> None:
+    profile = load_profile(
+        _write_profile(tmp_path, harness_plugin="~/horcrux-plugins/blob_harness.py")
+    )
+
+    assert profile.harness_plugin == Path("~/horcrux-plugins/blob_harness.py").expanduser()
 
 
 def test_profile_rejects_unknown_fields(tmp_path: Path) -> None:

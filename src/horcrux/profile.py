@@ -23,6 +23,7 @@ class AgentProfile(BaseModel):
     output_dir: Path
     source_root: Path | None = None
     overrides: dict[str, Path] = Field(default_factory=dict)
+    harness_plugin: Path | None = None
     model: str
     voice_notes: str
     capabilities: list[str] = Field(default_factory=list)
@@ -43,7 +44,7 @@ class AgentProfile(BaseModel):
             raise ValueError("name must not be empty")
         return value
 
-    @field_validator("output_dir", "source_root", mode="before")
+    @field_validator("output_dir", "source_root", "harness_plugin", mode="before")
     @classmethod
     def _coerce_paths(cls, value: object) -> object:
         if isinstance(value, str):
