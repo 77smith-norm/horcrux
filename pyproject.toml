@@ -23,6 +23,7 @@ horcrux = "horcrux.cli:app"
 
 [dependency-groups]
 dev = [
+  "hypothesis>=6.151.9",
   "pytest>=8.4.0",
   "pytest-cov>=7.1.0",
   "ruff>=0.11.0",
