@@ -93,7 +93,6 @@ _EXPECTED_FILES: list[tuple[Path, bool]] = [
 _HERMES_EXPECTED_FILES: list[tuple[Path, bool]] = [
     (Path("SOUL.md"), True),
     (Path("AGENTS.md"), True),
-    (Path("BOUNDARIES.md"), True),
     (Path("MEMORY.md"), True),
     (Path("IDENTITY.md"), True),
 ]

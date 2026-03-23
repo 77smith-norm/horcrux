@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from pydantic import ValidationError
 
 from horcrux.profile import AgentProfile, load_profile
 from horcrux.registry import RegistryEntry, load_registry, save_registry, upsert_registry_entry
@@ -85,10 +86,23 @@ def _build_target(
     try:
         target_cls = get_target(profile.harness)
     except ValueError as exc:
+        if profile.harness_plugin is not None:
+            raise typer.BadParameter(
+                " ".join(
+                    [
+                        f"Harness plugin {profile.harness_plugin} did not register",
+                        f"profile harness {profile.harness!r}.",
+                        str(exc),
+                    ]
+                )
+            ) from exc
         raise typer.BadParameter(str(exc)) from exc
     resolved_source_root = resolve_source_root(profile, cli_override=source_root)
-    source = load_canonical_workspace(resolved_source_root)
-    source = apply_overrides(source, profile.overrides)
+    try:
+        source = load_canonical_workspace(resolved_source_root)
+        source = apply_overrides(source, profile.overrides)
+    except (FileNotFoundError, ImportError, NotADirectoryError, OSError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
     return target_cls(profile=profile, source=source), resolved_source_root
 
 
@@ -96,16 +110,43 @@ def _load_harness_plugin(profile: AgentProfile) -> None:
     """Load an explicitly trusted local plugin before resolving its harness."""
 
     if profile.harness_plugin is not None:
-        load_plugin(profile.harness_plugin)
+        try:
+            load_plugin(profile.harness_plugin)
+        except (FileNotFoundError, ImportError, OSError) as exc:
+            raise typer.BadParameter(str(exc)) from exc
 
 
-def _write_files(files: list[DiffusedFile], output_dir: Path, *, force: bool) -> None:
+def _load_cli_profile(profile_path: Path | None, *, allow_missing: bool = False) -> AgentProfile:
+    if profile_path is None:
+        if allow_missing:
+            raise typer.BadParameter("PROFILE_PATH is required unless --all is used.")
+        raise typer.BadParameter("PROFILE_PATH is required.")
+    if profile_path.exists() and profile_path.is_dir():
+        raise typer.BadParameter(
+            f"{profile_path} is a directory. Use a profile YAML path, not an output_dir."
+        )
+    try:
+        return load_profile(profile_path)
+    except FileNotFoundError as exc:
+        raise typer.BadParameter(f"Profile not found: {profile_path}") from exc
+    except IsADirectoryError as exc:
+        raise typer.BadParameter(
+            f"{profile_path} is a directory. Use a profile YAML path, not an output_dir."
+        ) from exc
+    except (OSError, ValidationError, ValueError) as exc:
+        raise typer.BadParameter(f"Failed to load profile {profile_path}: {exc}") from exc
+
+
+def _validate_output_paths(files: list[DiffusedFile], output_dir: Path, *, force: bool) -> None:
     for file in files:
         destination = output_dir / file.relative_path
         if destination.exists() and not force:
             raise typer.BadParameter(
                 f"{destination} already exists. Re-run with --force to overwrite managed files."
             )
+
+
+def _write_files(files: list[DiffusedFile], output_dir: Path) -> None:
     for file in files:
         destination = output_dir / file.relative_path
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -145,7 +186,7 @@ def diffuse(
 ) -> None:
     """Diffuse a canonical workspace into a target agent workspace."""
 
-    profile = load_profile(profile_path)
+    profile = _load_cli_profile(profile_path)
     target, resolved_source_root = _build_target(profile, source_root=source_root)
     files = target.render()
     runtime_workspace = getattr(target, "runtime_workspace", profile.output_dir)
@@ -161,8 +202,9 @@ def diffuse(
         )
         return
 
+    _validate_output_paths(files, profile.output_dir, force=force)
     typer.echo(_format_diffusion_summary(profile, files, resolved_source_root, runtime_workspace))
-    _write_files(files, profile.output_dir, force=force)
+    _write_files(files, profile.output_dir)
     registry = load_registry()
     entry = RegistryEntry(
         name=profile.name,
@@ -305,7 +347,7 @@ def diff_agent(
     """Show structural diff between current output_dir and what diffuse would produce."""
     from horcrux.differ import run_diff
 
-    profile = load_profile(profile_path)
+    profile = _load_cli_profile(profile_path)
     target, _ = _build_target(profile, source_root=source_root)
     files = target.render()
     run_diff(profile, files, verbose=verbose)
@@ -313,7 +355,7 @@ def diff_agent(
 
 @app.command("check")
 def check_agent(
-    profile_path: Path,
+    profile_path: Annotated[Path | None, typer.Argument()] = None,
     source_root: Annotated[
         Path | None,
         typer.Option("--source", "-s", help="Override canonical source workspace root."),
@@ -333,7 +375,7 @@ def check_agent(
             typer.echo(str(report))
         return
 
-    profile = load_profile(profile_path)
+    profile = _load_cli_profile(profile_path, allow_missing=True)
     _load_harness_plugin(profile)
     resolve_source_root(profile, cli_override=source_root)
     report = run_structural_check(profile.output_dir, profile.name, harness=profile.harness)
@@ -359,10 +401,10 @@ def fix_agent(
     from horcrux.check import run_structural_check
     from horcrux.fix import run_fix
 
-    profile = load_profile(profile_path)
+    profile = _load_cli_profile(profile_path)
     _load_harness_plugin(profile)
     resolve_source_root(profile, cli_override=source_root)
-    report = run_structural_check(profile.output_dir, profile.name)
+    report = run_structural_check(profile.output_dir, profile.name, harness=profile.harness)
 
     if report.ok:
         typer.echo("No issues found — nothing to fix.")

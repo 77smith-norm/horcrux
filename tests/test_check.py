@@ -31,6 +31,25 @@ platform_notes: ""
     return p
 
 
+def _make_hermes_profile(tmp_path: Path, output_dir: Path) -> Path:
+    p = tmp_path / "hermes-profile.yaml"
+    p.write_text(
+        f"""\
+name: HermesCheck
+harness: hermes
+os: linux
+output_dir: {output_dir}
+model: test/model
+voice_notes: "Lean and direct."
+capabilities: []
+exclude_tools: []
+platform_notes: ""
+""",
+        encoding="utf-8",
+    )
+    return p
+
+
 def _populate_output(output_dir: Path) -> None:
     """Write minimal valid identity files to output_dir."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -166,3 +185,32 @@ def test_check_detects_second_person_instruction(tmp_path: Path) -> None:
         issue for issue in report.warnings if "second-person" in issue.message.lower()
     ]
     assert second_person, "Expected second-person instruction warning"
+
+
+def test_check_cli_hermes_does_not_require_openclaw_only_files(tmp_path: Path) -> None:
+    output_dir = tmp_path / "hermes-output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    profile = _make_hermes_profile(tmp_path, output_dir)
+
+    (output_dir / "SOUL.md").write_text(
+        "# SOUL.md\n\nI work directly.\n" + "x" * 700,
+        encoding="utf-8",
+    )
+    (output_dir / "AGENTS.md").write_text(
+        "# AGENTS.md\n\nI work directly.\n" + "x" * 400,
+        encoding="utf-8",
+    )
+    (output_dir / "MEMORY.md").write_text(
+        "# MEMORY.md\n\nI keep durable notes here.\n" + "x" * 100,
+        encoding="utf-8",
+    )
+    (output_dir / "IDENTITY.md").write_text(
+        "# IDENTITY.md\n\nI am HermesCheck.\n" + "x" * 100,
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["check", str(profile)])
+
+    assert result.exit_code == 0
+    assert "BOUNDARIES.md: Required file missing." not in result.output
+    assert "No issues found." in result.output

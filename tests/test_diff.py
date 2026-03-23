@@ -11,6 +11,11 @@ from horcrux.cli import app
 runner = CliRunner()
 
 
+def _configure_cli_env(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HORCRUX_REGISTRY_PATH", str(tmp_path / "agents.json"))
+    monkeypatch.setenv("HORCRUX_SOURCE_DIR", str(Path("tests/fixtures/canonical").resolve()))
+
+
 def _make_profile(tmp_path: Path, output_dir: Path | None = None) -> Path:
     profile = tmp_path / "agent.yaml"
     out = str(output_dir or tmp_path / "output")
@@ -38,9 +43,10 @@ def test_diff_missing_output_dir(tmp_path: Path) -> None:
     assert "TestDiff" in result.output
 
 
-def test_diff_shows_unchanged_when_files_match(tmp_path: Path) -> None:
+def test_diff_shows_unchanged_when_files_match(monkeypatch, tmp_path: Path) -> None:
     output_dir = tmp_path / "output"
     profile = _make_profile(tmp_path, output_dir=output_dir)
+    _configure_cli_env(monkeypatch, tmp_path)
 
     # First diffuse to output_dir
     result = runner.invoke(app, ["diffuse", str(profile), "--force"])
@@ -52,9 +58,10 @@ def test_diff_shows_unchanged_when_files_match(tmp_path: Path) -> None:
     assert "matches rendered output" in result.output or "Unchanged" in result.output
 
 
-def test_diff_shows_changed_when_file_modified(tmp_path: Path) -> None:
+def test_diff_shows_changed_when_file_modified(monkeypatch, tmp_path: Path) -> None:
     output_dir = tmp_path / "output"
     profile = _make_profile(tmp_path, output_dir=output_dir)
+    _configure_cli_env(monkeypatch, tmp_path)
 
     runner.invoke(app, ["diffuse", str(profile), "--force"])
     soul_file = output_dir / "SOUL.md"
@@ -66,9 +73,13 @@ def test_diff_shows_changed_when_file_modified(tmp_path: Path) -> None:
     assert "~" in result.output
 
 
-def test_diff_default_shows_section_summary_without_unified_diff(tmp_path: Path) -> None:
+def test_diff_default_shows_section_summary_without_unified_diff(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
     output_dir = tmp_path / "output"
     profile = _make_profile(tmp_path, output_dir=output_dir)
+    _configure_cli_env(monkeypatch, tmp_path)
 
     runner.invoke(app, ["diffuse", str(profile), "--force"])
     agents_file = output_dir / "AGENTS.md"
@@ -107,9 +118,10 @@ def test_diff_default_shows_section_summary_without_unified_diff(tmp_path: Path)
     assert "@@" not in result.output
 
 
-def test_diff_verbose_shows_unified_diff_for_changed_files(tmp_path: Path) -> None:
+def test_diff_verbose_shows_unified_diff_for_changed_files(monkeypatch, tmp_path: Path) -> None:
     output_dir = tmp_path / "output"
     profile = _make_profile(tmp_path, output_dir=output_dir)
+    _configure_cli_env(monkeypatch, tmp_path)
 
     runner.invoke(app, ["diffuse", str(profile), "--force"])
     agents_file = output_dir / "AGENTS.md"

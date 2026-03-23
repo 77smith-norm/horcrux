@@ -80,3 +80,8 @@ def test_profile_harness_plugin_expands_tilde(tmp_path: Path) -> None:
 def test_profile_rejects_unknown_fields(tmp_path: Path) -> None:
     with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
         load_profile(_write_profile(tmp_path, unexpected="value"))
+
+
+def test_profile_rejects_empty_voice_notes(tmp_path: Path) -> None:
+    with pytest.raises(ValidationError, match="voice_notes must not be empty"):
+        load_profile(_write_profile(tmp_path, voice_notes="   "))

@@ -36,7 +36,7 @@ def _expected_render_count(profile_path: Path) -> int:
     return len(OpenClawTarget(profile, source).render())
 
 
-def _write_plugin(tmp_path: Path) -> Path:
+def _write_plugin(tmp_path: Path, *, harness_id: str = "blob") -> Path:
     plugin_path = tmp_path / "blob_plugin.py"
     plugin_path.write_text(
         """
@@ -49,7 +49,7 @@ from horcrux.targets.registry import register
 
 @register
 class BlobHarnessTarget(BaseTarget):
-    harness_id: ClassVar[str] = "blob"
+    harness_id: ClassVar[str] = "%s"
 
     def render(self) -> list[DiffusedFile]:
         return [
@@ -60,7 +60,8 @@ class BlobHarnessTarget(BaseTarget):
                 transforms=("plugin-copy",),
             )
         ]
-""".strip(),
+""".strip()
+        % harness_id,
         encoding="utf-8",
     )
     return plugin_path
@@ -157,7 +158,11 @@ def test_fix_exits_early_when_report_is_clean(monkeypatch, tmp_path: Path) -> No
     output_dir = tmp_path / "output"
     output_dir.mkdir()
 
-    def fake_run_structural_check(_output_dir: Path, _agent_name: str) -> CheckReport:
+    def fake_run_structural_check(
+        _output_dir: Path,
+        _agent_name: str,
+        harness: str = "openclaw",
+    ) -> CheckReport:
         return CheckReport(agent_name="TestAgent", output_dir=output_dir)
 
     monkeypatch.setattr("horcrux.check.run_structural_check", fake_run_structural_check)
@@ -182,10 +187,17 @@ def test_fix_reports_empty_agent_dir_without_crashing(tmp_path: Path) -> None:
 def test_check_all_exits_cleanly_when_registry_is_empty(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr("horcrux.cli.load_registry", lambda: Registry())
 
-    result = CliRunner().invoke(app, ["check", str(tmp_path / "unused.yaml"), "--all"])
+    result = CliRunner().invoke(app, ["check", "--all"])
 
     assert result.exit_code == 0
     assert "No agents registered." in result.stdout
+
+
+def test_check_requires_profile_path_without_all() -> None:
+    result = CliRunner().invoke(app, ["check"])
+
+    assert result.exit_code == 2
+    assert "PROFILE_PATH is required unless --all is used." in result.output
 
 
 def test_check_all_prints_each_registered_agent_report(monkeypatch, tmp_path: Path) -> None:
@@ -207,7 +219,7 @@ def test_check_all_prints_each_registered_agent_report(monkeypatch, tmp_path: Pa
     monkeypatch.setattr("horcrux.cli.load_registry", lambda: registry)
     monkeypatch.setattr("horcrux.check.run_structural_check", fake_run_structural_check)
 
-    result = CliRunner().invoke(app, ["check", str(tmp_path / "unused.yaml"), "--all"])
+    result = CliRunner().invoke(app, ["check", "--all"])
 
     assert result.exit_code == 0
     assert "Check: TestAgent" in result.stdout
@@ -237,6 +249,28 @@ def test_diffuse_respects_source_root_in_profile(monkeypatch, tmp_path: Path) ->
     assert (tmp_path / "output" / "SOUL.md").read_text(encoding="utf-8") == (
         "# SOUL.md\n\nProfile-specific source root.\n"
     )
+
+
+def test_diffuse_missing_profile_reports_clear_error(tmp_path: Path) -> None:
+    missing_profile = tmp_path / "missing.yaml"
+
+    result = CliRunner().invoke(app, ["diffuse", str(missing_profile)])
+
+    assert result.exit_code == 2
+    assert "Profile not found:" in result.output
+    assert missing_profile.name in result.output
+
+
+def test_diffuse_invalid_profile_mapping_reports_clear_error(tmp_path: Path) -> None:
+    invalid_profile = tmp_path / "invalid-profile.yaml"
+    invalid_profile.write_text("- not-a-mapping\n", encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["diffuse", str(invalid_profile)])
+
+    assert result.exit_code == 2
+    assert "Failed to load profile" in result.output
+    assert "YAML" in result.output
+    assert "mapping" in result.output
 
 
 def test_diffuse_source_flag_overrides_profile(monkeypatch, tmp_path: Path) -> None:
@@ -313,3 +347,134 @@ def test_diffuse_with_harness_plugin(monkeypatch, tmp_path: Path) -> None:
     assert (tmp_path / "output" / "PLUGIN.md").read_text(encoding="utf-8") == (
         "# SOUL.md\n\nPlugin-loaded source.\n"
     )
+
+
+def test_diffuse_missing_harness_plugin_reports_clear_error(tmp_path: Path) -> None:
+    profile_path = _write_profile(tmp_path)
+    missing_plugin = tmp_path / "missing_plugin.py"
+
+    profile_data = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile_data["harness_plugin"] = str(missing_plugin)
+    profile_path.write_text(yaml.safe_dump(profile_data), encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["diffuse", str(profile_path)])
+
+    assert result.exit_code == 2
+    assert "harness_plugin not found:" in result.output
+    assert missing_plugin.name in result.output
+
+
+def test_profile_commands_reject_output_dir_with_clear_error(tmp_path: Path) -> None:
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    runner = CliRunner()
+
+    for command in ("check", "diff", "fix"):
+        result = runner.invoke(app, [command, str(output_dir)])
+
+        assert result.exit_code == 2
+        assert "YAML" in result.output
+        assert "profile" in result.output
+        assert "output_dir" in result.output
+        assert output_dir.name in result.output
+
+
+def test_diffuse_missing_source_root_reports_clear_error(tmp_path: Path) -> None:
+    profile_path = _write_profile(tmp_path)
+    missing_source = tmp_path / "missing-source"
+
+    profile_data = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile_data["source_root"] = str(missing_source)
+    profile_path.write_text(yaml.safe_dump(profile_data), encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["diffuse", str(profile_path)])
+
+    assert result.exit_code == 2
+    assert "Source root not found:" in result.output
+    assert missing_source.name in result.output
+
+
+def test_diffuse_existing_files_reports_error_without_success_summary(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    profile_path = _write_profile(tmp_path)
+
+    monkeypatch.setenv("HORCRUX_SOURCE_DIR", str(fixture_path("canonical")))
+    monkeypatch.setenv("HORCRUX_REGISTRY_PATH", str(tmp_path / "agents.json"))
+
+    runner = CliRunner()
+    first = runner.invoke(app, ["diffuse", str(profile_path), "--force"])
+    assert first.exit_code == 0, first.output
+
+    second = runner.invoke(app, ["diffuse", str(profile_path)])
+
+    assert second.exit_code == 2
+    assert "already exists." in second.output
+    assert "--force" in second.output
+    assert "Diffused:" not in second.output
+
+
+def test_diffuse_harness_plugin_mismatch_reports_clear_error(tmp_path: Path) -> None:
+    profile_path = _write_profile(tmp_path)
+    plugin_path = _write_plugin(tmp_path, harness_id="mismatch-blub")
+    source_root = _write_source_workspace(
+        tmp_path,
+        "plugin-source",
+        "# SOUL.md\n\nPlugin-loaded source.\n",
+    )
+
+    profile_data = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile_data["harness"] = "mismatch-blob"
+    profile_data["harness_plugin"] = str(plugin_path)
+    profile_data["source_root"] = str(source_root)
+    profile_path.write_text(yaml.safe_dump(profile_data), encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["diffuse", str(profile_path)])
+
+    assert result.exit_code == 2
+    assert "did not register" in result.output
+    assert "profile harness" in result.output
+    assert "mismatch-blob" in result.output
+    assert "mismatch-blub" in result.output
+
+
+def test_list_exits_cleanly_when_registry_is_empty(monkeypatch) -> None:
+    monkeypatch.setattr("horcrux.cli.load_registry", lambda: Registry())
+
+    result = CliRunner().invoke(app, ["list"])
+
+    assert result.exit_code == 0
+    assert "No agents registered." in result.output
+
+
+def test_init_prints_profile_yaml_to_stdout() -> None:
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            "--name",
+            "StdoutInit",
+            "--harness",
+            "openclaw",
+            "--os",
+            "linux",
+            "--output-dir",
+            "/tmp/stdout-init",
+            "--model",
+            "test/model",
+            "--voice-notes",
+            "Lean and direct.",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "name: StdoutInit" in result.output
+    assert "voice_notes: >" in result.output
+
+
+def test_init_rejects_invalid_harness_choice() -> None:
+    result = CliRunner().invoke(app, ["init", "--harness", "blob"])
+
+    assert result.exit_code == 2
+    assert "harness must be one of: openclaw, hermes" in result.output

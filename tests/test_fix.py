@@ -11,12 +11,12 @@ from horcrux.fix import run_fix
 runner = CliRunner()
 
 
-def _make_profile(tmp_path: Path, output_dir: Path) -> Path:
+def _make_profile(tmp_path: Path, output_dir: Path, *, harness: str = "openclaw") -> Path:
     profile_path = tmp_path / "profile.yaml"
     profile_path.write_text(
         f"""\
 name: FixTest
-harness: openclaw
+harness: {harness}
 os: linux
 output_dir: {output_dir}
 model: test/model
@@ -287,3 +287,32 @@ def test_run_fix_auto_skips_lines_also_flagged_as_errors(tmp_path: Path) -> None
 
     assert applied == 1
     assert soul_path.read_text(encoding="utf-8") == "Keep this line.\n"
+
+
+def test_fix_cli_hermes_uses_hermes_expected_files(tmp_path: Path) -> None:
+    output_dir = tmp_path / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    profile = _make_profile(tmp_path, output_dir, harness="hermes")
+
+    (output_dir / "SOUL.md").write_text(
+        "# SOUL.md\n\nI work directly.\n" + "x" * 700,
+        encoding="utf-8",
+    )
+    (output_dir / "AGENTS.md").write_text(
+        "# AGENTS.md\n\nI work directly.\n" + "x" * 400,
+        encoding="utf-8",
+    )
+    (output_dir / "MEMORY.md").write_text(
+        "# MEMORY.md\n\nI keep durable notes here.\n" + "x" * 100,
+        encoding="utf-8",
+    )
+    (output_dir / "IDENTITY.md").write_text(
+        "# IDENTITY.md\n\nI am FixTest.\n" + "x" * 100,
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["fix", str(profile), "--auto"])
+
+    assert result.exit_code == 0
+    assert "No issues found — nothing to fix." in result.output
+    assert "HEARTBEAT.md: Required file missing." not in result.output

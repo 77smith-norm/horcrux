@@ -96,6 +96,10 @@ def load_canonical_workspace(root: Path | str | None = None) -> CanonicalWorkspa
     """Load the standard canonical workspace files from a directory."""
 
     workspace_root = Path(root) if root is not None else default_source_root()
+    if not workspace_root.exists():
+        raise FileNotFoundError(f"Source root not found: {workspace_root}")
+    if not workspace_root.is_dir():
+        raise NotADirectoryError(f"Source root is not a directory: {workspace_root}")
     documents: dict[Path, SourceDocument] = {}
 
     for relative_path in ROOT_DOCUMENTS:

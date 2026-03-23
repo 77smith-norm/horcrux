@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
 Harness = str
 TargetOS = Literal["linux", "macos"]
@@ -37,11 +37,11 @@ class AgentProfile(BaseModel):
             return value.strip()
         return value
 
-    @field_validator("name")
+    @field_validator("name", "model", "voice_notes")
     @classmethod
-    def _validate_name(cls, value: str) -> str:
+    def _validate_required_text(cls, value: str, info: ValidationInfo) -> str:
         if not value:
-            raise ValueError("name must not be empty")
+            raise ValueError(f"{info.field_name} must not be empty")
         return value
 
     @field_validator("output_dir", "source_root", "harness_plugin", mode="before")

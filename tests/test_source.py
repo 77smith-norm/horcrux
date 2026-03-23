@@ -31,6 +31,13 @@ def test_load_canonical_workspace_reads_root_docs_and_refs() -> None:
     assert "Test soul." in workspace.read_text("SOUL.md")
 
 
+def test_load_canonical_workspace_missing_root_raises_clear_error(tmp_path: Path) -> None:
+    missing_root = tmp_path / "missing-canonical"
+
+    with pytest.raises(FileNotFoundError, match=rf"Source root not found: {missing_root}"):
+        load_canonical_workspace(missing_root)
+
+
 @pytest.mark.parametrize("missing_name", ["AGENTS.md", "SOUL.md"])
 def test_load_canonical_workspace_raises_for_missing_root_document(
     tmp_path: Path,
