@@ -22,6 +22,7 @@ class AgentProfile(BaseModel):
     os: TargetOS
     output_dir: Path
     source_root: Path | None = None
+    overrides: dict[str, Path] = Field(default_factory=dict)
     model: str
     voice_notes: str
     capabilities: list[str] = Field(default_factory=list)
@@ -48,6 +49,15 @@ class AgentProfile(BaseModel):
         if isinstance(value, str):
             return Path(value).expanduser()
         return value
+
+    @field_validator("overrides", mode="before")
+    @classmethod
+    def _coerce_overrides(cls, value: object) -> object:
+        if value is None:
+            return {}
+        if not isinstance(value, dict):
+            return value
+        return {key: Path(str(path)).expanduser() for key, path in value.items()}
 
     @field_validator("capabilities", "exclude_tools", mode="before")
     @classmethod

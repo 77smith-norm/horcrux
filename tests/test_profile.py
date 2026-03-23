@@ -25,6 +25,7 @@ def test_load_profile_parses_yaml() -> None:
     assert profile.harness == "openclaw"
     assert profile.os == "linux"
     assert profile.output_dir.as_posix() == "/tmp/horcrux-test-agent"
+    assert profile.overrides == {}
     assert profile.capabilities == ["terminal", "python"]
     assert profile.exclude_tools == ["mdfind", "applcal"]
 
@@ -45,6 +46,20 @@ def test_profile_source_root_absolute(tmp_path: Path) -> None:
     profile = load_profile(_write_profile(tmp_path, source_root="/tmp/workspace"))
 
     assert profile.source_root == Path("/tmp/workspace")
+
+
+def test_profile_overrides_optional(tmp_path: Path) -> None:
+    profile = load_profile(_write_profile(tmp_path))
+
+    assert profile.overrides == {}
+
+
+def test_profile_overrides_expand_tilde(tmp_path: Path) -> None:
+    profile = load_profile(
+        _write_profile(tmp_path, overrides={"USER.md": "~/client-overrides/USER.md"})
+    )
+
+    assert profile.overrides == {"USER.md": Path("~/client-overrides/USER.md").expanduser()}
 
 
 def test_profile_rejects_unknown_fields(tmp_path: Path) -> None:
