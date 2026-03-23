@@ -53,7 +53,13 @@ Add `source_root` to the profile when the canonical workspace is not the default
 
 ```yaml
 source_root: ~/horcrux-starter
+overrides:
+  USER.md: ~/clients/zocots/USER.md
 ```
+
+Override keys use canonical document paths such as `USER.md`, `SOUL.md`, or
+`refs/HANDOFF.md`. Override values are local files that replace the canonical
+document during rendering.
 
 ## Commands
 

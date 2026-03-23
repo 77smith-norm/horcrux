@@ -35,6 +35,7 @@ pip install horcrux
 uv add horcrux
 ```
 2. Identify your canonical workspace. In most setups, this is your primary OpenClaw workspace, such as `~/.openclaw/workspace`. You can set it per-profile with `source_root`, per-command with `--source`, or globally with `HORCRUX_SOURCE_DIR`.
+   Use `overrides` in the profile when a specific client needs a custom `USER.md`, `SOUL.md`, or other source document without changing the canonical workspace.
 3. Generate `profiles/zocots.yaml`:
 ```bash
 horcrux init \
@@ -201,6 +202,9 @@ harness: openclaw          # openclaw | hermes
 os: linux                  # macos | linux
 output_dir: ~/agents/Zocots
 source_root: ~/horcrux-starter  # optional; otherwise uses HORCRUX_SOURCE_DIR or ~/.openclaw/workspace
+overrides:
+  USER.md: ~/clients/zocots/USER.md
+  SOUL.md: ~/clients/zocots/SOUL.md
 model: openrouter/minimax/minimax-m2.7
 voice_notes: >
   Quieter than Norm. More watchful. Technical and precise.
@@ -215,6 +219,8 @@ exclude_tools:
   - applpass
 platform_notes: "Ubuntu 22.04 VM. No GUI tools."
 ```
+
+Override keys use the canonical document path (`USER.md`, `SOUL.md`, `refs/HANDOFF.md`, and so on). Override values point to local files that replace the canonical document during rendering.
 
 ## What Gets Diffused
 
