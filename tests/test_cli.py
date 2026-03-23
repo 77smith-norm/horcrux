@@ -36,6 +36,36 @@ def _expected_render_count(profile_path: Path) -> int:
     return len(OpenClawTarget(profile, source).render())
 
 
+def _write_plugin(tmp_path: Path) -> Path:
+    plugin_path = tmp_path / "blob_plugin.py"
+    plugin_path.write_text(
+        """
+from pathlib import Path
+from typing import ClassVar
+
+from horcrux.targets.base import BaseTarget, DiffusedFile
+from horcrux.targets.registry import register
+
+
+@register
+class BlobHarnessTarget(BaseTarget):
+    harness_id: ClassVar[str] = "blob"
+
+    def render(self) -> list[DiffusedFile]:
+        return [
+            DiffusedFile(
+                relative_path=Path("PLUGIN.md"),
+                content=self.source.read_text(Path("SOUL.md")),
+                source_path=Path("SOUL.md"),
+                transforms=("plugin-copy",),
+            )
+        ]
+""".strip(),
+        encoding="utf-8",
+    )
+    return plugin_path
+
+
 def test_diffuse_dry_run_prints_meaningful_output(monkeypatch, tmp_path: Path) -> None:
     profile_path = _write_profile(tmp_path)
 
@@ -257,4 +287,29 @@ def test_diffuse_override_replaces_user_md(monkeypatch, tmp_path: Path) -> None:
     assert result.exit_code == 0, result.stdout
     assert (tmp_path / "output" / "USER.md").read_text(encoding="utf-8") == (
         "# USER.md\n\nOverride user document.\n"
+    )
+
+
+def test_diffuse_with_harness_plugin(monkeypatch, tmp_path: Path) -> None:
+    profile_path = _write_profile(tmp_path)
+    plugin_path = _write_plugin(tmp_path)
+    source_root = _write_source_workspace(
+        tmp_path,
+        "plugin-source",
+        "# SOUL.md\n\nPlugin-loaded source.\n",
+    )
+
+    profile_data = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile_data["harness"] = "blob"
+    profile_data["harness_plugin"] = str(plugin_path)
+    profile_data["source_root"] = str(source_root)
+    profile_path.write_text(yaml.safe_dump(profile_data), encoding="utf-8")
+
+    monkeypatch.setenv("HORCRUX_REGISTRY_PATH", str(tmp_path / "agents.json"))
+
+    result = CliRunner().invoke(app, ["diffuse", str(profile_path), "--force"])
+
+    assert result.exit_code == 0, result.stdout
+    assert (tmp_path / "output" / "PLUGIN.md").read_text(encoding="utf-8") == (
+        "# SOUL.md\n\nPlugin-loaded source.\n"
     )

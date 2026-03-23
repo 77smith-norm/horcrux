@@ -13,6 +13,7 @@ from horcrux.profile import AgentProfile, load_profile
 from horcrux.registry import RegistryEntry, load_registry, save_registry, upsert_registry_entry
 from horcrux.source import apply_overrides, load_canonical_workspace, resolve_source_root
 from horcrux.targets import BaseTarget, DiffusedFile, get_target
+from horcrux.targets.registry import load_plugin
 
 app = typer.Typer(help="Diffuse agent identities into harness-specific workspaces.")
 _INIT_HARNESSES = ("openclaw", "hermes")
@@ -80,6 +81,7 @@ def _build_target(
     *,
     source_root: Path | None = None,
 ) -> tuple[BaseTarget, Path]:
+    _load_harness_plugin(profile)
     try:
         target_cls = get_target(profile.harness)
     except ValueError as exc:
@@ -88,6 +90,13 @@ def _build_target(
     source = load_canonical_workspace(resolved_source_root)
     source = apply_overrides(source, profile.overrides)
     return target_cls(profile=profile, source=source), resolved_source_root
+
+
+def _load_harness_plugin(profile: AgentProfile) -> None:
+    """Load an explicitly trusted local plugin before resolving its harness."""
+
+    if profile.harness_plugin is not None:
+        load_plugin(profile.harness_plugin)
 
 
 def _write_files(files: list[DiffusedFile], output_dir: Path, *, force: bool) -> None:
@@ -325,6 +334,7 @@ def check_agent(
         return
 
     profile = load_profile(profile_path)
+    _load_harness_plugin(profile)
     resolve_source_root(profile, cli_override=source_root)
     report = run_structural_check(profile.output_dir, profile.name, harness=profile.harness)
     typer.echo(str(report))
@@ -350,6 +360,7 @@ def fix_agent(
     from horcrux.fix import run_fix
 
     profile = load_profile(profile_path)
+    _load_harness_plugin(profile)
     resolve_source_root(profile, cli_override=source_root)
     report = run_structural_check(profile.output_dir, profile.name)
 
