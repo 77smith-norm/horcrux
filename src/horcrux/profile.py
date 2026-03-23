@@ -21,6 +21,7 @@ class AgentProfile(BaseModel):
     harness: Harness
     os: TargetOS
     output_dir: Path
+    source_root: Path | None = None
     model: str
     voice_notes: str
     capabilities: list[str] = Field(default_factory=list)
@@ -41,9 +42,9 @@ class AgentProfile(BaseModel):
             raise ValueError("name must not be empty")
         return value
 
-    @field_validator("output_dir", mode="before")
+    @field_validator("output_dir", "source_root", mode="before")
     @classmethod
-    def _coerce_output_dir(cls, value: object) -> object:
+    def _coerce_paths(cls, value: object) -> object:
         if isinstance(value, str):
             return Path(value).expanduser()
         return value
