@@ -48,6 +48,13 @@ horcrux init \
 In a terminal, `horcrux init --output profiles/zocots.yaml` will prompt for any
 missing fields. In non-interactive mode, provide all required flags.
 
+Add `source_root` to the profile when the canonical workspace is not the default
+`~/.openclaw/workspace` or `HORCRUX_SOURCE_DIR` location:
+
+```yaml
+source_root: ~/horcrux-starter
+```
+
 ## Commands
 
 ### `horcrux diffuse`
@@ -57,10 +64,17 @@ Use `diffuse` to render the managed file set for a target harness.
 ```bash
 horcrux diffuse profiles/zocots.yaml --dry-run
 horcrux diffuse profiles/zocots.yaml --force
+horcrux diffuse profiles/zocots.yaml --source ~/horcrux-starter
 ```
 
 Run `--dry-run` first. Use `--force` only when you intend to overwrite existing
 managed files.
+
+Source root precedence:
+1. `--source`
+2. `source_root` in the profile
+3. `HORCRUX_SOURCE_DIR`
+4. `~/.openclaw/workspace`
 
 ### `horcrux diff`
 
@@ -70,6 +84,7 @@ Horcrux would change.
 ```bash
 horcrux diff profiles/zocots.yaml
 horcrux diff profiles/zocots.yaml --verbose
+horcrux diff profiles/zocots.yaml --source ~/horcrux-starter
 ```
 
 ### `horcrux check`

@@ -34,7 +34,7 @@ pip install horcrux
 # or
 uv add horcrux
 ```
-2. Identify your canonical workspace. In most setups, this is your primary OpenClaw workspace, such as `~/.openclaw/workspace`.
+2. Identify your canonical workspace. In most setups, this is your primary OpenClaw workspace, such as `~/.openclaw/workspace`. You can set it per-profile with `source_root`, per-command with `--source`, or globally with `HORCRUX_SOURCE_DIR`.
 3. Generate `profiles/zocots.yaml`:
 ```bash
 horcrux init \
@@ -58,6 +58,7 @@ prompt for any missing fields. In non-interactive mode, provide all required fla
 ```bash
 horcrux diffuse profiles/zocots.yaml --dry-run
 horcrux diffuse profiles/zocots.yaml --force
+horcrux diffuse profiles/zocots.yaml --source ~/horcrux-starter --dry-run
 horcrux check profiles/zocots.yaml
 ```
 See [Commands](#commands) for the full command reference.
@@ -90,7 +91,14 @@ Seed a new agent from a canonical workspace.
 horcrux diffuse profiles/zocots.yaml
 horcrux diffuse profiles/zocots.yaml --dry-run   # preview without writing
 horcrux diffuse profiles/zocots.yaml --force     # overwrite existing files
+horcrux diffuse profiles/zocots.yaml --source ~/horcrux-starter
 ```
+
+Source root precedence:
+1. `--source`
+2. `source_root` in the profile YAML
+3. `HORCRUX_SOURCE_DIR`
+4. `~/.openclaw/workspace`
 
 ### `horcrux check`
 
@@ -130,6 +138,7 @@ Show what `horcrux diffuse` would change in an existing output directory.
 ```bash
 horcrux diff profiles/zocots.yaml
 horcrux diff profiles/zocots.yaml --verbose      # show line-by-line diffs
+horcrux diff profiles/zocots.yaml --source ~/horcrux-starter
 ```
 
 ### `horcrux init`
@@ -191,6 +200,7 @@ name: Zocots
 harness: openclaw          # openclaw | hermes
 os: linux                  # macos | linux
 output_dir: ~/agents/Zocots
+source_root: ~/horcrux-starter  # optional; otherwise uses HORCRUX_SOURCE_DIR or ~/.openclaw/workspace
 model: openrouter/minimax/minimax-m2.7
 voice_notes: >
   Quieter than Norm. More watchful. Technical and precise.

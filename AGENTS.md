@@ -17,7 +17,7 @@ Each derived agent is called a **horcrux**: a fragment of the original, living i
 src/horcrux/
   cli.py              # typer entry point
   profile.py          # pydantic profile model + YAML loader
-  source.py           # canonical workspace reader
+  source.py           # canonical workspace reader + resolve_source_root()
   transforms/
     base.py           # Transform protocol
     copy.py           # verbatim copy
@@ -34,7 +34,7 @@ src/horcrux/
 
 ## Active Plan
 
-The active plan is `docs/2026-03-22-horcrux-plan.md`. All other plan docs are historical records.
+The active plan is `docs/2026-03-22-multi-client-plan.md`. All other plan docs are historical records.
 
 ## TCR Rules
 
