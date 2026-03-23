@@ -109,6 +109,36 @@ platform_notes: ""
     assert files[Path("SOUL.md")].content == canonical_soul
 
 
+def test_hermes_soul_prefers_agent_local_file(tmp_path: Path) -> None:
+    output_dir = tmp_path / "aria"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    agent_soul = output_dir / "SOUL.md"
+    agent_soul.write_text("# SOUL.md\n\nAgent-local soul.\n", encoding="utf-8")
+
+    profile_path = tmp_path / "h-local.yaml"
+    profile_path.write_text(
+        f"""\
+name: Aria
+harness: hermes
+os: linux
+output_dir: {output_dir}
+model: test/model
+voice_notes: "Thoughtful."
+capabilities: []
+exclude_tools: []
+platform_notes: ""
+""",
+        encoding="utf-8",
+    )
+    profile = load_profile(profile_path)
+    source = load_canonical_workspace(fixture_path("canonical"))
+
+    files = {f.relative_path: f for f in HermesTarget(profile, source).render()}
+
+    assert files[Path("SOUL.md")].content == "# SOUL.md\n\nAgent-local soul.\n"
+    assert files[Path("SOUL.md")].transforms == ("agent-local",)
+
+
 def test_llm_transform_raises_without_api_key(monkeypatch: object) -> None:
     """LLMTransform should raise RuntimeError if no API key is set."""
 

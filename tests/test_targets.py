@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from shutil import copytree
 
 from horcrux.profile import load_profile
 from horcrux.source import load_canonical_workspace
@@ -30,3 +31,35 @@ def test_openclaw_target_renders_linux_specific_output() -> None:
     assert "`terminal`" in rendered[Path("TOOLS.md")].content
     assert "`mdfind`" in rendered[Path("TOOLS.md")].content
 
+
+def test_openclaw_target_renders_macos_output_and_skips_missing_optional_refs(
+    tmp_path: Path,
+) -> None:
+    source_root = tmp_path / "canonical"
+    copytree(fixture_path("canonical"), source_root)
+    (source_root / "refs" / "DEVELOPMENT.md").unlink()
+
+    profile_path = tmp_path / "macos-agent.yaml"
+    output_dir = tmp_path / "output"
+    profile_path.write_text(
+        f"""\
+name: MacAgent
+harness: openclaw
+os: macos
+output_dir: {output_dir}
+model: test/model
+voice_notes: "Quiet and direct."
+capabilities: []
+exclude_tools: []
+platform_notes: ""
+""",
+        encoding="utf-8",
+    )
+    profile = load_profile(profile_path)
+    source = load_canonical_workspace(source_root)
+
+    rendered = {file.relative_path: file for file in OpenClawTarget(profile, source).render()}
+
+    assert Path("refs/DEVELOPMENT.md") not in rendered
+    assert str(output_dir) in rendered[Path("BOUNDARIES.md")].content
+    assert "/home/workspace" not in rendered[Path("BOUNDARIES.md")].content

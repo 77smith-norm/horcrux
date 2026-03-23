@@ -141,18 +141,3 @@ class HermesTarget(BaseTarget):
             source_path=None,
             transforms=("render-hermes-memory",),
         )
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
-
-    def _common_substitutions(self) -> tuple[tuple[str, str], ...]:
-        base = (
-            Path("/home") / self.profile.name.lower()
-            if self.profile.os == "linux"
-            else self.profile.output_dir
-        )
-        return (
-            ("/Users/norm/Developer", str(base / "dev")),
-            ("/Users/norm/.openclaw/workspace", str(base)),
-        )
