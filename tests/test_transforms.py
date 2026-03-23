@@ -35,10 +35,26 @@ gamma
     assert "gamma" in rendered
 
 
+def test_filter_transform_strips_indented_markdown_heading() -> None:
+    text = """# Doc
+
+   ## Drop
+beta
+
+## Keep
+gamma
+"""
+    rendered = FilterTransform(strip_headings=("Drop",)).apply(text)
+
+    assert "   ## Drop" not in rendered
+    assert "beta" not in rendered
+    assert "## Keep" in rendered
+    assert "gamma" in rendered
+
+
 def test_substitute_transform_applies_ordered_replacements() -> None:
     rendered = SubstituteTransform(
         replacements=(("alpha", "beta"), ("beta beta", "done"))
     ).apply("alpha alpha")
 
     assert rendered == "done"
-

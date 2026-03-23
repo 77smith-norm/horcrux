@@ -24,8 +24,8 @@ class FilterSectionCase:
     drop_fragment: str
 
 
-def render_heading(level: int, title: str) -> str:
-    return f"{'#' * level} {title}\n"
+def render_heading(level: int, title: str, *, indent: int = 0) -> str:
+    return f"{' ' * indent}{'#' * level} {title}\n"
 
 
 def render_lines(lines: list[str]) -> str:
@@ -44,6 +44,8 @@ def filter_section_case(draw: st.DrawFn) -> FilterSectionCase:
     keep_title = draw(HEADING_TITLE.filter(lambda title: title != strip_title))
     strip_level = draw(HEADING_LEVEL)
     keep_level = draw(st.integers(min_value=1, max_value=strip_level))
+    strip_indent = draw(st.integers(min_value=0, max_value=3))
+    keep_indent = draw(st.integers(min_value=0, max_value=3))
     before_lines = draw(tagged_lines("before"))
     stripped_lines = draw(tagged_lines("stripped"))
     kept_lines = draw(tagged_lines("kept"))
@@ -58,23 +60,24 @@ def filter_section_case(draw: st.DrawFn) -> FilterSectionCase:
             HEADING_TITLE.filter(lambda title: title not in {strip_title, keep_title})
         )
         nested_level = draw(st.integers(min_value=strip_level + 1, max_value=6))
+        nested_indent = draw(st.integers(min_value=0, max_value=3))
         nested_lines = draw(tagged_lines("nested"))
-        nested_heading = render_heading(nested_level, nested_title)
+        nested_heading = render_heading(nested_level, nested_title, indent=nested_indent)
 
     document = (
         render_lines(before_lines)
-        + render_heading(strip_level, strip_title)
+        + render_heading(strip_level, strip_title, indent=strip_indent)
         + render_lines(stripped_lines)
         + nested_heading
         + render_lines(nested_lines)
         + f"{dropped_line}\n"
-        + render_heading(keep_level, keep_title)
+        + render_heading(keep_level, keep_title, indent=keep_indent)
         + render_lines(kept_lines)
         + render_lines(tail_lines)
     )
     expected = (
         render_lines(before_lines)
-        + render_heading(keep_level, keep_title)
+        + render_heading(keep_level, keep_title, indent=keep_indent)
         + render_lines(kept_lines)
         + render_lines(tail_lines)
     )

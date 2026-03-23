@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)(?:\s+#+\s*)?$")
+HEADING_RE = re.compile(r"^[ ]{0,3}(#{1,6})\s+(.*?)(?:\s+#+\s*)?$")
 
 
 @dataclass(frozen=True)
