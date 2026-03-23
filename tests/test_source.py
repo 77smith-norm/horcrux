@@ -6,7 +6,7 @@ from shutil import copytree
 import pytest
 
 from horcrux.profile import AgentProfile
-from horcrux.source import load_canonical_workspace, resolve_source_root
+from horcrux.source import apply_overrides, load_canonical_workspace, resolve_source_root
 from tests.conftest import fixture_path
 
 
@@ -68,3 +68,44 @@ def test_resolve_source_root_falls_back_to_default(monkeypatch) -> None:
     resolved = resolve_source_root(profile)
 
     assert resolved == Path("/tmp/default-source")
+
+
+def test_apply_overrides_replaces_document(tmp_path: Path) -> None:
+    workspace = load_canonical_workspace(fixture_path("canonical"))
+    override_path = tmp_path / "USER.md"
+    override_path.write_text("# USER.md\n\nOverride content.\n", encoding="utf-8")
+
+    updated = apply_overrides(workspace, {"USER.md": override_path})
+
+    assert updated.read_text("USER.md") == "# USER.md\n\nOverride content.\n"
+    assert workspace.read_text("USER.md") != updated.read_text("USER.md")
+
+
+def test_apply_overrides_adds_new_document(tmp_path: Path) -> None:
+    workspace = load_canonical_workspace(fixture_path("canonical"))
+    override_path = tmp_path / "CUSTOM.md"
+    override_path.write_text("# CUSTOM.md\n\nOverride content.\n", encoding="utf-8")
+
+    updated = apply_overrides(workspace, {"refs/CUSTOM.md": override_path})
+
+    assert updated.has_document("refs/CUSTOM.md")
+    assert updated.read_text("refs/CUSTOM.md") == "# CUSTOM.md\n\nOverride content.\n"
+
+
+def test_apply_overrides_empty_overrides_returns_same_workspace() -> None:
+    workspace = load_canonical_workspace(fixture_path("canonical"))
+
+    updated = apply_overrides(workspace, {})
+
+    assert updated is workspace
+
+
+def test_apply_overrides_missing_file_raises(tmp_path: Path) -> None:
+    workspace = load_canonical_workspace(fixture_path("canonical"))
+    missing_override = tmp_path / "missing.md"
+
+    with pytest.raises(
+        FileNotFoundError,
+        match=rf"Override for USER\.md not found: {missing_override}",
+    ):
+        apply_overrides(workspace, {"USER.md": missing_override})

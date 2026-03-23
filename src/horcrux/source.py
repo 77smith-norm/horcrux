@@ -70,6 +70,28 @@ def resolve_source_root(
     return default_source_root()
 
 
+def apply_overrides(
+    workspace: CanonicalWorkspace,
+    overrides: dict[str, Path],
+) -> CanonicalWorkspace:
+    """Return a canonical workspace with per-document overrides applied."""
+
+    if not overrides:
+        return workspace
+
+    documents = workspace.documents.copy()
+    for relative_path_str, override_path in overrides.items():
+        relative_path = Path(relative_path_str)
+        if not override_path.exists():
+            raise FileNotFoundError(f"Override for {relative_path} not found: {override_path}")
+        documents[relative_path] = SourceDocument(
+            relative_path=relative_path,
+            content=override_path.read_text(encoding="utf-8"),
+        )
+
+    return CanonicalWorkspace(root=workspace.root, documents=documents)
+
+
 def load_canonical_workspace(root: Path | str | None = None) -> CanonicalWorkspace:
     """Load the standard canonical workspace files from a directory."""
 
