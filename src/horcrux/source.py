@@ -6,6 +6,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from horcrux.profile import AgentProfile
+
 DEFAULT_SOURCE_ROOT = Path("/Users/norm/.openclaw/workspace")
 SOURCE_ROOT_ENV_VAR = "HORCRUX_SOURCE_DIR"
 ROOT_DOCUMENTS = (
@@ -55,6 +57,19 @@ def default_source_root() -> Path:
     return DEFAULT_SOURCE_ROOT
 
 
+def resolve_source_root(
+    profile: AgentProfile,
+    cli_override: Path | str | None = None,
+) -> Path:
+    """Resolve the canonical workspace root from CLI, profile, or defaults."""
+
+    if cli_override is not None:
+        return Path(cli_override).expanduser()
+    if profile.source_root is not None:
+        return profile.source_root
+    return default_source_root()
+
+
 def load_canonical_workspace(root: Path | str | None = None) -> CanonicalWorkspace:
     """Load the standard canonical workspace files from a directory."""
 
@@ -77,4 +92,3 @@ def load_canonical_workspace(root: Path | str | None = None) -> CanonicalWorkspa
         )
 
     return CanonicalWorkspace(root=workspace_root, documents=documents)
-
