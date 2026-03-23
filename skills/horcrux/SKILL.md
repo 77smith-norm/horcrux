@@ -28,20 +28,25 @@ uv add horcrux
 
 ## Profile
 
-Required fields:
+Generate the profile YAML with `horcrux init`:
 
-```yaml
-name: Zocots
-harness: openclaw
-os: linux
-output_dir: ~/agents/Zocots
-model: openrouter/minimax/minimax-m2.7
-voice_notes: >
-  Quieter than Norm. More watchful. Technical and precise.
+```bash
+horcrux init \
+  --name Zocots \
+  --harness openclaw \
+  --os linux \
+  --output-dir ~/agents/Zocots \
+  --model openrouter/minimax/minimax-m2.7 \
+  --voice-notes "Quieter than Norm. More watchful. Technical and precise." \
+  --capabilities terminal \
+  --capabilities git \
+  --capabilities web \
+  --platform-notes "Ubuntu 22.04 VM." \
+  --output profiles/zocots.yaml
 ```
 
-Add `capabilities`, `exclude_tools`, and `platform_notes` when the target agent
-needs them.
+In a terminal, `horcrux init --output profiles/zocots.yaml` will prompt for any
+missing fields. In non-interactive mode, provide all required flags.
 
 ## Commands
 
@@ -86,7 +91,7 @@ horcrux fix profiles/zocots.yaml
 
 ## Primary Workflow
 
-1. Create or update the profile YAML for the derived agent.
+1. Generate or update the profile YAML for the derived agent with `horcrux init`.
 2. Run `horcrux diffuse <profile> --dry-run` to preview the managed file set.
 3. Run `horcrux diffuse <profile> --force` to write the managed files.
 4. Run `horcrux check <profile>` to verify structure and tone.

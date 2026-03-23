@@ -35,16 +35,23 @@ pip install horcrux
 uv add horcrux
 ```
 2. Identify your canonical workspace. In most setups, this is your primary OpenClaw workspace, such as `~/.openclaw/workspace`.
-3. Create `profiles/zocots.yaml`:
-```yaml
-name: Zocots
-harness: openclaw
-os: linux
-output_dir: ~/agents/Zocots
-model: openrouter/minimax/minimax-m2.7
-voice_notes: >
-  Quieter than Norm. More watchful. Technical and precise.
+3. Generate `profiles/zocots.yaml`:
+```bash
+horcrux init \
+  --name Zocots \
+  --harness openclaw \
+  --os linux \
+  --output-dir ~/agents/Zocots \
+  --model openrouter/minimax/minimax-m2.7 \
+  --voice-notes "Quieter than Norm. More watchful. Technical and precise." \
+  --capabilities terminal \
+  --capabilities git \
+  --capabilities web \
+  --platform-notes "Ubuntu 22.04 VM." \
+  --output profiles/zocots.yaml
 ```
+If you're running in a terminal, `horcrux init --output profiles/zocots.yaml` will
+prompt for any missing fields. In non-interactive mode, provide all required flags.
 4. Preview the managed output with `horcrux diffuse profiles/zocots.yaml --dry-run`.
 5. Write the files with `horcrux diffuse profiles/zocots.yaml --force`.
 6. Verify the result with `horcrux check profiles/zocots.yaml`.
@@ -127,10 +134,24 @@ horcrux diff profiles/zocots.yaml --verbose      # show line-by-line diffs
 
 ### `horcrux init`
 
-Generate a profile YAML via interview.
+Generate a profile YAML from flags, or fall back to prompts for any missing
+fields when running in a terminal.
 
 ```bash
-horcrux init --output profiles/my-agent.yaml
+horcrux init \
+  --name Zocots \
+  --harness openclaw \
+  --os linux \
+  --output-dir ~/agents/Zocots \
+  --model openrouter/minimax/minimax-m2.7 \
+  --voice-notes "Quieter than Norm. More watchful. Technical and precise." \
+  --capabilities terminal \
+  --capabilities git \
+  --capabilities web \
+  --platform-notes "Ubuntu 22.04 VM." \
+  --output profiles/zocots.yaml
+
+horcrux init --output profiles/zocots.yaml   # prompt for missing fields in a terminal
 ```
 
 ### `horcrux list`
