@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from shutil import copytree
 
 import yaml
 from typer.testing import CliRunner
@@ -20,6 +21,13 @@ def _write_profile(tmp_path: Path) -> Path:
     profile_path = tmp_path / "profile.yaml"
     profile_path.write_text(yaml.safe_dump(profile_data), encoding="utf-8")
     return profile_path
+
+
+def _write_source_workspace(tmp_path: Path, name: str, soul_text: str) -> Path:
+    source_root = tmp_path / name
+    copytree(fixture_path("canonical"), source_root)
+    (source_root / "SOUL.md").write_text(soul_text, encoding="utf-8")
+    return source_root
 
 
 def _expected_render_count(profile_path: Path) -> int:
@@ -175,3 +183,58 @@ def test_check_all_prints_each_registered_agent_report(monkeypatch, tmp_path: Pa
     assert "Check: TestAgent" in result.stdout
     assert f"Output dir: {output_dir}" in result.stdout
     assert "No issues found." in result.stdout
+
+
+def test_diffuse_respects_source_root_in_profile(monkeypatch, tmp_path: Path) -> None:
+    profile_path = _write_profile(tmp_path)
+    custom_source = _write_source_workspace(
+        tmp_path,
+        "custom-source",
+        "# SOUL.md\n\nProfile-specific source root.\n",
+    )
+
+    profile_data = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile_data["source_root"] = str(custom_source)
+    profile_path.write_text(yaml.safe_dump(profile_data), encoding="utf-8")
+
+    monkeypatch.setenv("HORCRUX_SOURCE_DIR", str(fixture_path("canonical")))
+    monkeypatch.setenv("HORCRUX_REGISTRY_PATH", str(tmp_path / "agents.json"))
+
+    result = CliRunner().invoke(app, ["diffuse", str(profile_path), "--force"])
+
+    assert result.exit_code == 0, result.stdout
+    assert f"Source root: {custom_source}" in result.stdout
+    assert (tmp_path / "output" / "SOUL.md").read_text(encoding="utf-8") == (
+        "# SOUL.md\n\nProfile-specific source root.\n"
+    )
+
+
+def test_diffuse_source_flag_overrides_profile(monkeypatch, tmp_path: Path) -> None:
+    profile_path = _write_profile(tmp_path)
+    profile_source = _write_source_workspace(
+        tmp_path,
+        "profile-source",
+        "# SOUL.md\n\nProfile source root.\n",
+    )
+    cli_source = _write_source_workspace(
+        tmp_path,
+        "cli-source",
+        "# SOUL.md\n\nCLI source root.\n",
+    )
+
+    profile_data = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile_data["source_root"] = str(profile_source)
+    profile_path.write_text(yaml.safe_dump(profile_data), encoding="utf-8")
+
+    monkeypatch.setenv("HORCRUX_REGISTRY_PATH", str(tmp_path / "agents.json"))
+
+    result = CliRunner().invoke(
+        app,
+        ["diffuse", str(profile_path), "--force", "--source", str(cli_source)],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert f"Source root: {cli_source}" in result.stdout
+    assert (tmp_path / "output" / "SOUL.md").read_text(encoding="utf-8") == (
+        "# SOUL.md\n\nCLI source root.\n"
+    )

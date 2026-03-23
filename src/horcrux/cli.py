@@ -11,7 +11,7 @@ import typer
 
 from horcrux.profile import AgentProfile, load_profile
 from horcrux.registry import RegistryEntry, load_registry, save_registry, upsert_registry_entry
-from horcrux.source import default_source_root, load_canonical_workspace
+from horcrux.source import load_canonical_workspace, resolve_source_root
 from horcrux.targets import BaseTarget, DiffusedFile, get_target
 
 app = typer.Typer(help="Diffuse agent identities into harness-specific workspaces.")
@@ -75,13 +75,18 @@ def _stdin_supports_prompts() -> bool:
     return sys.stdin.isatty() or sys.stdin.__class__.__module__ == "click.testing"
 
 
-def _build_target(profile: AgentProfile) -> BaseTarget:
-    source = load_canonical_workspace()
+def _build_target(
+    profile: AgentProfile,
+    *,
+    source_root: Path | None = None,
+) -> tuple[BaseTarget, Path]:
     try:
         target_cls = get_target(profile.harness)
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
-    return target_cls(profile=profile, source=source)
+    resolved_source_root = resolve_source_root(profile, cli_override=source_root)
+    source = load_canonical_workspace(resolved_source_root)
+    return target_cls(profile=profile, source=source), resolved_source_root
 
 
 def _write_files(files: list[DiffusedFile], output_dir: Path, *, force: bool) -> None:
@@ -100,11 +105,12 @@ def _write_files(files: list[DiffusedFile], output_dir: Path, *, force: bool) ->
 def _format_diffusion_summary(
     profile: AgentProfile,
     files: list[DiffusedFile],
+    source_root: Path,
     runtime_workspace: Path,
 ) -> str:
     lines = [
         f"Diffused: {profile.name} ({profile.harness}/{profile.os})",
-        f"Source root: {default_source_root()}",
+        f"Source root: {source_root}",
         f"Output dir: {profile.output_dir}",
         f"Runtime workspace: {runtime_workspace}",
         f"Files: {len(files)}",
@@ -120,13 +126,17 @@ def _format_diffusion_summary(
 @app.command()
 def diffuse(
     profile_path: Path,
+    source_root: Annotated[
+        Path | None,
+        typer.Option("--source", "-s", help="Override canonical source workspace root."),
+    ] = None,
     dry_run: bool = typer.Option(False, "--dry-run", help="Render without writing files."),
     force: bool = typer.Option(False, "--force", help="Overwrite managed files."),
 ) -> None:
     """Diffuse a canonical workspace into a target agent workspace."""
 
     profile = load_profile(profile_path)
-    target = _build_target(profile)
+    target, resolved_source_root = _build_target(profile, source_root=source_root)
     files = target.render()
     runtime_workspace = getattr(target, "runtime_workspace", profile.output_dir)
 
@@ -136,12 +146,12 @@ def diffuse(
         run_diffuse_preview(
             profile,
             files,
-            source_root=default_source_root(),
+            source_root=resolved_source_root,
             runtime_workspace=runtime_workspace,
         )
         return
 
-    typer.echo(_format_diffusion_summary(profile, files, runtime_workspace))
+    typer.echo(_format_diffusion_summary(profile, files, resolved_source_root, runtime_workspace))
     _write_files(files, profile.output_dir, force=force)
     registry = load_registry()
     entry = RegistryEntry(
@@ -276,13 +286,17 @@ def init_profile(
 @app.command("diff")
 def diff_agent(
     profile_path: Path,
+    source_root: Annotated[
+        Path | None,
+        typer.Option("--source", "-s", help="Override canonical source workspace root."),
+    ] = None,
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show full content diffs."),
 ) -> None:
     """Show structural diff between current output_dir and what diffuse would produce."""
     from horcrux.differ import run_diff
 
     profile = load_profile(profile_path)
-    target = _build_target(profile)
+    target, _ = _build_target(profile, source_root=source_root)
     files = target.render()
     run_diff(profile, files, verbose=verbose)
 
@@ -290,6 +304,10 @@ def diff_agent(
 @app.command("check")
 def check_agent(
     profile_path: Path,
+    source_root: Annotated[
+        Path | None,
+        typer.Option("--source", "-s", help="Override canonical source workspace root."),
+    ] = None,
     all_agents: bool = typer.Option(False, "--all", help="Check all registered agents."),
 ) -> None:
     """Check an agent's identity files for structural issues and tone drift."""
@@ -306,6 +324,7 @@ def check_agent(
         return
 
     profile = load_profile(profile_path)
+    resolve_source_root(profile, cli_override=source_root)
     report = run_structural_check(profile.output_dir, profile.name, harness=profile.harness)
     typer.echo(str(report))
     if report.errors:
@@ -315,6 +334,10 @@ def check_agent(
 @app.command("fix")
 def fix_agent(
     profile_path: Path,
+    source_root: Annotated[
+        Path | None,
+        typer.Option("--source", "-s", help="Override canonical source workspace root."),
+    ] = None,
     auto: bool = typer.Option(
         False,
         "--auto",
@@ -326,6 +349,7 @@ def fix_agent(
     from horcrux.fix import run_fix
 
     profile = load_profile(profile_path)
+    resolve_source_root(profile, cli_override=source_root)
     report = run_structural_check(profile.output_dir, profile.name)
 
     if report.ok:
