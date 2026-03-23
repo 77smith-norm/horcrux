@@ -1,26 +1,29 @@
-# Adding a New Harness to Horcrux
+# Adding a Harness Plugin
 
-## What a harness target does
+Horcrux can now load harness targets from a local Python file at runtime. You do
+not need to edit `src/horcrux/targets/`, add imports to `__init__.py`, or wait
+for a package release.
 
-A harness target turns one validated `AgentProfile` plus the canonical source workspace into a list of `DiffusedFile` objects. The CLI does not special-case harnesses anymore. It asks the target registry for `profile.harness`, instantiates that target, and writes or diffs whatever `render()` returns.
+## What a plugin does
 
-That means a new harness should require only:
+A harness plugin defines one or more `BaseTarget` subclasses and registers them
+with `@register`. When a profile sets `harness_plugin`, Horcrux imports that
+file before resolving `profile.harness`.
 
-1. One target module under `src/horcrux/targets/`
-2. One import in `src/horcrux/targets/__init__.py`
-3. A profile YAML that names the new harness
-4. Target-specific tests
+The plugin receives the same inputs as built-in harnesses:
 
-No changes to `src/horcrux/profile.py` or `src/horcrux/cli.py` should be needed.
+1. `profile` — the validated `AgentProfile`
+2. `source` — the canonical workspace after `source_root` resolution and
+   `overrides` have already been applied
 
-## Target contract
+## Target Contract
 
-Every target must:
+Every plugin target must:
 
 1. Subclass `BaseTarget`
-2. Define a lowercase `harness_id` string that matches the profile `harness` field
-3. Implement `render() -> list[DiffusedFile]`
-4. Register itself with `@register`
+2. Define a lowercase `harness_id` string
+3. Decorate the class with `@register`
+4. Implement `render() -> list[DiffusedFile]`
 
 `BaseTarget` provides:
 
@@ -37,73 +40,59 @@ class BaseTarget(ABC):
         ...
 ```
 
-## Steps
-
-1. Create `src/horcrux/targets/<name>.py`
-2. Import `BaseTarget` and `DiffusedFile` from `horcrux.targets.base`
-3. Import `register` from `horcrux.targets.registry`
-4. Subclass `BaseTarget`
-5. Set `harness_id = "<name>"`
-6. Implement `render()`
-7. Add an import in `src/horcrux/targets/__init__.py`
-8. Create a profile YAML with `harness: <name>`
-9. Add tests in `tests/test_<name>_target.py`
-
-## Example target
+## Minimal Plugin
 
 ```python
 from pathlib import Path
+from typing import ClassVar
 
 from horcrux.targets.base import BaseTarget, DiffusedFile
 from horcrux.targets.registry import register
 
 
 @register
-class CodexTarget(BaseTarget):
-    harness_id = "codex"
+class BlobHarnessTarget(BaseTarget):
+    harness_id: ClassVar[str] = "blob"
 
     def render(self) -> list[DiffusedFile]:
         return [
             DiffusedFile(
-                relative_path=Path("AGENTS.md"),
-                content="# AGENTS.md\n\nCodex-specific context.\n",
-                source_path=None,
-                transforms=("render-codex-agents",),
+                relative_path=Path("PLUGIN.md"),
+                content=self.source.read_text(Path("SOUL.md")),
+                source_path=Path("SOUL.md"),
+                transforms=("plugin-copy",),
             )
         ]
 ```
 
-## Package registration
-
-Targets self-register when their module is imported. Add the new target import to `src/horcrux/targets/__init__.py`:
-
-```python
-from horcrux.targets.codex import CodexTarget
-```
-
-If that import is missing, `get_target("codex")` will fail at runtime with `Unknown harness`.
-
-## Profile YAML example
+## Profile Example
 
 ```yaml
-name: CodexAgent
-harness: codex
+name: BlobAgent
+harness: blob
+harness_plugin: ~/horcrux-plugins/blob_harness.py
+source_root: ~/horcrux-starter
+overrides:
+  USER.md: ~/clients/blob/USER.md
 os: macos
-output_dir: /tmp/codex-agent
+output_dir: ~/agents/BlobAgent
 model: gpt-5
 voice_notes: "Lean and direct."
 capabilities:
   - terminal
-exclude_tools:
-  - mdfind
 platform_notes: ""
 ```
 
-`profile.harness` is now a plain string. Validity comes from the runtime target registry, not from a closed enum in Pydantic.
+`harness` must match the plugin target's `harness_id`.
 
-## What `render()` must return
+## Authoring Notes
 
-`render()` must return a `list[DiffusedFile]`. Each `DiffusedFile` describes one managed output file:
+Use `self.source.read_text(Path("..."))` for canonical or overridden documents.
+Use `source_path=None` for generated files with no canonical source. Use
+`transforms` to leave a readable trail such as `("copy",)` or
+`("plugin-render",)`.
+
+`render()` must return a `list[DiffusedFile]`:
 
 ```python
 @dataclass(frozen=True)
@@ -114,19 +103,18 @@ class DiffusedFile:
     transforms: tuple[str, ...]
 ```
 
-Use:
+## Test Workflow
 
-1. `relative_path` for the file path under `output_dir`
-2. `content` for the rendered text to write
-3. `source_path` for canonical-source provenance, or `None` for generated files
-4. `transforms` for an ordered label trail describing how the file was produced
+1. Write the plugin file.
+2. Create a profile that points to it with `harness_plugin`.
+3. Run `horcrux diffuse <profile> --dry-run`.
+4. Run `horcrux diffuse <profile> --force` after the preview looks right.
+5. Add a focused test that imports the plugin with `load_plugin()` and a CLI test
+   that diffuses through the plugin path.
 
-## Testing expectations
+## Security Model
 
-Add at least:
-
-1. A target-render test that checks the expected output files and important harness-specific content
-2. A registry test if the harness adds unusual registration behavior
-3. CLI coverage if the harness changes user-visible diffusion behavior
-
-The main regression check is still: create a profile with `harness: <name>`, call the target, and confirm `render()` returns the right file set without any core-code edits.
+`harness_plugin` executes arbitrary Python from a local file. This is
+intentional. Horcrux only imports the path explicitly named in the profile; it
+does not scan directories or auto-discover plugins. Treat plugin files with the
+same trust level as any other Python code you run locally.
