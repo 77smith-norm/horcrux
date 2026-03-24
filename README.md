@@ -1,5 +1,9 @@
 # Horcrux
 
+<p align="center">
+  <img src="norm_horcrux.png" alt="Norm, a small round white creature with big dark eyes and a tiny antenna, surrounded by glowing fragment shards — each one a piece of identity ready to be diffused into a new agent." width="400" />
+</p>
+
 > *Each derived agent carries a fragment of the original. Not a clone. An individual.*
 
 - [Getting Started](#getting-started)
