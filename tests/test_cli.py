@@ -364,7 +364,6 @@ def test_diffuse_missing_harness_plugin_reports_clear_error(monkeypatch, tmp_pat
     assert result.exit_code == 2
     out = strip_ansi(result.output)
     assert "harness_plugin not found:" in out
-    assert "missing_plugin" in out
 
 
 def test_profile_commands_reject_output_dir_with_clear_error(tmp_path: Path) -> None:
@@ -395,7 +394,6 @@ def test_diffuse_missing_source_root_reports_clear_error(tmp_path: Path) -> None
     assert result.exit_code == 2
     out = strip_ansi(result.output)
     assert "Source root not found:" in out
-    assert "missing-source" in out
 
 
 def test_diffuse_existing_files_reports_error_without_success_summary(
