@@ -36,7 +36,8 @@ platform_notes: ""
     return profile
 
 
-def test_diff_missing_output_dir(tmp_path: Path) -> None:
+def test_diff_missing_output_dir(monkeypatch, tmp_path: Path) -> None:
+    _configure_cli_env(monkeypatch, tmp_path)
     profile = _make_profile(tmp_path)
     result = runner.invoke(app, ["diff", str(profile)])
     assert result.exit_code == 0
