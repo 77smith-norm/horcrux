@@ -12,7 +12,7 @@ from horcrux.profile import load_profile
 from horcrux.registry import Registry, RegistryEntry
 from horcrux.source import load_canonical_workspace
 from horcrux.targets.openclaw import OpenClawTarget
-from tests.conftest import fixture_path
+from tests.conftest import fixture_path, strip_ansi
 
 
 def _write_profile(tmp_path: Path) -> Path:
@@ -197,7 +197,7 @@ def test_check_requires_profile_path_without_all() -> None:
     result = CliRunner().invoke(app, ["check"])
 
     assert result.exit_code == 2
-    assert "PROFILE_PATH is required unless --all is used." in result.output
+    assert "PROFILE_PATH is required unless --all is used." in strip_ansi(result.output)
 
 
 def test_check_all_prints_each_registered_agent_report(monkeypatch, tmp_path: Path) -> None:
@@ -360,8 +360,8 @@ def test_diffuse_missing_harness_plugin_reports_clear_error(tmp_path: Path) -> N
     result = CliRunner().invoke(app, ["diffuse", str(profile_path)])
 
     assert result.exit_code == 2
-    assert "harness_plugin not found:" in result.output
-    assert missing_plugin.name in result.output
+    assert "harness_plugin not found:" in strip_ansi(result.output)
+    assert missing_plugin.name in strip_ansi(result.output)
 
 
 def test_profile_commands_reject_output_dir_with_clear_error(tmp_path: Path) -> None:
@@ -390,8 +390,8 @@ def test_diffuse_missing_source_root_reports_clear_error(tmp_path: Path) -> None
     result = CliRunner().invoke(app, ["diffuse", str(profile_path)])
 
     assert result.exit_code == 2
-    assert "Source root not found:" in result.output
-    assert missing_source.name in result.output
+    assert "Source root not found:" in strip_ansi(result.output)
+    assert missing_source.name in strip_ansi(result.output)
 
 
 def test_diffuse_existing_files_reports_error_without_success_summary(
@@ -410,8 +410,8 @@ def test_diffuse_existing_files_reports_error_without_success_summary(
     second = runner.invoke(app, ["diffuse", str(profile_path)])
 
     assert second.exit_code == 2
-    assert "already exists." in second.output
-    assert "--force" in second.output
+    assert "already exists." in strip_ansi(second.output)
+    assert "--force" in strip_ansi(second.output)
     assert "Diffused:" not in second.output
 
 
